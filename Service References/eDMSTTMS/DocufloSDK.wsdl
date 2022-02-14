@@ -1,0 +1,536 @@
+<?xml version="1.0" encoding="utf-8"?>
+<wsdl:definitions xmlns:soapenc="http://schemas.xmlsoap.org/soap/encoding/" xmlns:tm="http://microsoft.com/wsdl/mime/textMatching/" xmlns:mime="http://schemas.xmlsoap.org/wsdl/mime/" xmlns:tns="http://tempuri.org/DocufloSDK/Service1" xmlns:soap="http://schemas.xmlsoap.org/wsdl/soap/" xmlns:s="http://www.w3.org/2001/XMLSchema" xmlns:http="http://schemas.xmlsoap.org/wsdl/http/" xmlns:soap12="http://schemas.xmlsoap.org/wsdl/soap12/" targetNamespace="http://tempuri.org/DocufloSDK/Service1" xmlns:wsdl="http://schemas.xmlsoap.org/wsdl/">
+  <wsdl:types>
+    <s:schema elementFormDefault="qualified" targetNamespace="http://tempuri.org/DocufloSDK/Service1">
+      <s:element name="Export">
+        <s:complexType>
+          <s:sequence>
+            <s:element minOccurs="0" maxOccurs="1" name="FileContent" type="s:base64Binary" />
+            <s:element minOccurs="0" maxOccurs="1" name="strFileName" type="s:string" />
+            <s:element minOccurs="0" maxOccurs="1" name="strProfile" type="s:string" />
+            <s:element minOccurs="0" maxOccurs="1" name="strFolderName" type="s:string" />
+            <s:element minOccurs="0" maxOccurs="1" name="arrProfileValue" type="tns:ArrayOfString" />
+            <s:element minOccurs="0" maxOccurs="1" name="userID" type="s:string" />
+          </s:sequence>
+        </s:complexType>
+      </s:element>
+      <s:complexType name="ArrayOfString">
+        <s:sequence>
+          <s:element minOccurs="0" maxOccurs="unbounded" name="string" nillable="true" type="s:string" />
+        </s:sequence>
+      </s:complexType>
+      <s:element name="ExportResponse">
+        <s:complexType>
+          <s:sequence>
+            <s:element minOccurs="0" maxOccurs="1" name="ExportResult" type="s:string" />
+          </s:sequence>
+        </s:complexType>
+      </s:element>
+      <s:element name="Search">
+        <s:complexType>
+          <s:sequence>
+            <s:element minOccurs="0" maxOccurs="1" name="strCriteria" type="s:string" />
+          </s:sequence>
+        </s:complexType>
+      </s:element>
+      <s:element name="SearchResponse">
+        <s:complexType>
+          <s:sequence>
+            <s:element minOccurs="0" maxOccurs="1" name="SearchResult" type="tns:ArrayOfDataProfileResult" />
+          </s:sequence>
+        </s:complexType>
+      </s:element>
+      <s:complexType name="ArrayOfDataProfileResult">
+        <s:sequence>
+          <s:element minOccurs="0" maxOccurs="unbounded" name="DataProfileResult" type="tns:DataProfileResult" />
+        </s:sequence>
+      </s:complexType>
+      <s:complexType name="DataProfileResult">
+        <s:sequence>
+          <s:element minOccurs="0" maxOccurs="1" name="Arr_DataValue" type="tns:ArrayOfDataColumn" />
+          <s:element minOccurs="1" maxOccurs="1" name="VerID" type="s:long" />
+          <s:element minOccurs="1" maxOccurs="1" name="ProfileID" type="s:long" />
+          <s:element minOccurs="1" maxOccurs="1" name="DocID" type="s:long" />
+          <s:element minOccurs="0" maxOccurs="1" name="ImageName" type="s:string" />
+          <s:element minOccurs="1" maxOccurs="1" name="TotalRecFound" type="s:int" />
+        </s:sequence>
+      </s:complexType>
+      <s:complexType name="ArrayOfDataColumn">
+        <s:sequence>
+          <s:element minOccurs="0" maxOccurs="unbounded" name="DataColumn" type="tns:DataColumn" />
+        </s:sequence>
+      </s:complexType>
+      <s:complexType name="DataColumn">
+        <s:sequence>
+          <s:element minOccurs="0" maxOccurs="1" name="Col_Desc" type="s:string" />
+          <s:element minOccurs="0" maxOccurs="1" name="ProfileValue" type="s:string" />
+          <s:element minOccurs="0" maxOccurs="1" name="Col_ID" type="s:string" />
+          <s:element minOccurs="0" maxOccurs="1" name="Col_Name" type="s:string" />
+        </s:sequence>
+      </s:complexType>
+      <s:element name="SearchByDocID">
+        <s:complexType>
+          <s:sequence>
+            <s:element minOccurs="1" maxOccurs="1" name="profileID" type="s:int" />
+            <s:element minOccurs="1" maxOccurs="1" name="docID" type="s:long" />
+          </s:sequence>
+        </s:complexType>
+      </s:element>
+      <s:element name="SearchByDocIDResponse">
+        <s:complexType>
+          <s:sequence>
+            <s:element minOccurs="0" maxOccurs="1" name="SearchByDocIDResult" type="tns:ArrayOfDataProfileResult" />
+          </s:sequence>
+        </s:complexType>
+      </s:element>
+      <s:element name="ProfileSearch">
+        <s:complexType>
+          <s:sequence>
+            <s:element minOccurs="0" maxOccurs="1" name="profile_name" type="s:string" />
+            <s:element minOccurs="0" maxOccurs="1" name="column_names" type="tns:ArrayOfAnyType" />
+            <s:element minOccurs="0" maxOccurs="1" name="column_keywords" type="tns:ArrayOfAnyType" />
+            <s:element minOccurs="0" maxOccurs="1" name="error_msg" type="s:string" />
+          </s:sequence>
+        </s:complexType>
+      </s:element>
+      <s:complexType name="ArrayOfAnyType">
+        <s:sequence>
+          <s:element minOccurs="0" maxOccurs="unbounded" name="anyType" nillable="true" />
+        </s:sequence>
+      </s:complexType>
+      <s:element name="ProfileSearchResponse">
+        <s:complexType>
+          <s:sequence>
+            <s:element minOccurs="0" maxOccurs="1" name="ProfileSearchResult" type="tns:ArrayOfDataProfileResult" />
+            <s:element minOccurs="0" maxOccurs="1" name="error_msg" type="s:string" />
+          </s:sequence>
+        </s:complexType>
+      </s:element>
+      <s:element name="Download">
+        <s:complexType>
+          <s:sequence>
+            <s:element minOccurs="1" maxOccurs="1" name="VerID" type="s:long" />
+            <s:element minOccurs="1" maxOccurs="1" name="DocProfileID" type="s:long" />
+            <s:element minOccurs="1" maxOccurs="1" name="FileType" type="s:short" />
+            <s:element minOccurs="0" maxOccurs="1" name="FileName" type="s:string" />
+            <s:element minOccurs="0" maxOccurs="1" name="FileContent" type="s:base64Binary" />
+          </s:sequence>
+        </s:complexType>
+      </s:element>
+      <s:element name="DownloadResponse">
+        <s:complexType>
+          <s:sequence>
+            <s:element minOccurs="0" maxOccurs="1" name="DownloadResult" type="s:string" />
+            <s:element minOccurs="0" maxOccurs="1" name="FileName" type="s:string" />
+            <s:element minOccurs="0" maxOccurs="1" name="FileContent" type="s:base64Binary" />
+          </s:sequence>
+        </s:complexType>
+      </s:element>
+      <s:element name="UpdateTargetProfileValue">
+        <s:complexType>
+          <s:sequence>
+            <s:element minOccurs="1" maxOccurs="1" name="docID" type="s:long" />
+            <s:element minOccurs="0" maxOccurs="1" name="profile_name" type="s:string" />
+            <s:element minOccurs="0" maxOccurs="1" name="base_column_name" type="s:string" />
+            <s:element minOccurs="0" maxOccurs="1" name="base_value" />
+            <s:element minOccurs="0" maxOccurs="1" name="target_column_name" type="s:string" />
+            <s:element minOccurs="0" maxOccurs="1" name="target_value" />
+          </s:sequence>
+        </s:complexType>
+      </s:element>
+      <s:element name="UpdateTargetProfileValueResponse">
+        <s:complexType>
+          <s:sequence>
+            <s:element minOccurs="0" maxOccurs="1" name="UpdateTargetProfileValueResult" type="s:string" />
+          </s:sequence>
+        </s:complexType>
+      </s:element>
+      <s:element name="DeleteDocument">
+        <s:complexType>
+          <s:sequence>
+            <s:element minOccurs="1" maxOccurs="1" name="docID" type="s:long" />
+            <s:element minOccurs="1" maxOccurs="1" name="profileID" type="s:long" />
+          </s:sequence>
+        </s:complexType>
+      </s:element>
+      <s:element name="DeleteDocumentResponse">
+        <s:complexType>
+          <s:sequence>
+            <s:element minOccurs="0" maxOccurs="1" name="DeleteDocumentResult" type="s:string" />
+          </s:sequence>
+        </s:complexType>
+      </s:element>
+      <s:element name="Login">
+        <s:complexType>
+          <s:sequence>
+            <s:element minOccurs="0" maxOccurs="1" name="userName" type="s:string" />
+            <s:element minOccurs="0" maxOccurs="1" name="userPassword" type="s:string" />
+            <s:element minOccurs="0" maxOccurs="1" name="userID" type="s:string" />
+          </s:sequence>
+        </s:complexType>
+      </s:element>
+      <s:element name="LoginResponse">
+        <s:complexType>
+          <s:sequence>
+            <s:element minOccurs="0" maxOccurs="1" name="LoginResult" type="s:string" />
+            <s:element minOccurs="0" maxOccurs="1" name="userID" type="s:string" />
+          </s:sequence>
+        </s:complexType>
+      </s:element>
+      <s:element name="LoadProfiles">
+        <s:complexType />
+      </s:element>
+      <s:complexType name="Profiles">
+        <s:sequence>
+          <s:element minOccurs="1" maxOccurs="1" name="profileID" type="s:int" />
+          <s:element minOccurs="0" maxOccurs="1" name="profileName" type="s:string" />
+        </s:sequence>
+      </s:complexType>
+      <s:complexType name="ArrayOfProfiles">
+        <s:sequence>
+          <s:element minOccurs="0" maxOccurs="unbounded" name="Profiles" type="tns:Profiles" />
+        </s:sequence>
+      </s:complexType>
+      <s:element name="LoadProfilesResponse">
+        <s:complexType>
+          <s:sequence>
+            <s:element minOccurs="0" maxOccurs="1" name="LoadProfilesResult" type="tns:ArrayOfProfiles" />
+          </s:sequence>
+        </s:complexType>
+      </s:element>
+      <s:element name="LoadProfileField">
+        <s:complexType>
+          <s:sequence>
+            <s:element minOccurs="1" maxOccurs="1" name="intProfileID" type="s:int" />
+          </s:sequence>
+        </s:complexType>
+      </s:element>
+      <s:complexType name="ProfileField">
+        <s:sequence>
+          <s:element minOccurs="1" maxOccurs="1" name="colID" type="s:int" />
+          <s:element minOccurs="0" maxOccurs="1" name="colName" type="s:string" />
+          <s:element minOccurs="0" maxOccurs="1" name="colDesc" type="s:string" />
+          <s:element minOccurs="0" maxOccurs="1" name="colDataType" type="s:string" />
+        </s:sequence>
+      </s:complexType>
+      <s:complexType name="ArrayOfProfileField">
+        <s:sequence>
+          <s:element minOccurs="0" maxOccurs="unbounded" name="ProfileField" type="tns:ProfileField" />
+        </s:sequence>
+      </s:complexType>
+      <s:element name="LoadProfileFieldResponse">
+        <s:complexType>
+          <s:sequence>
+            <s:element minOccurs="0" maxOccurs="1" name="LoadProfileFieldResult" type="tns:ArrayOfProfileField" />
+          </s:sequence>
+        </s:complexType>
+      </s:element>
+    </s:schema>
+  </wsdl:types>
+  <wsdl:message name="ExportSoapIn">
+    <wsdl:part name="parameters" element="tns:Export" />
+  </wsdl:message>
+  <wsdl:message name="ExportSoapOut">
+    <wsdl:part name="parameters" element="tns:ExportResponse" />
+  </wsdl:message>
+  <wsdl:message name="SearchSoapIn">
+    <wsdl:part name="parameters" element="tns:Search" />
+  </wsdl:message>
+  <wsdl:message name="SearchSoapOut">
+    <wsdl:part name="parameters" element="tns:SearchResponse" />
+  </wsdl:message>
+  <wsdl:message name="SearchByDocIDSoapIn">
+    <wsdl:part name="parameters" element="tns:SearchByDocID" />
+  </wsdl:message>
+  <wsdl:message name="SearchByDocIDSoapOut">
+    <wsdl:part name="parameters" element="tns:SearchByDocIDResponse" />
+  </wsdl:message>
+  <wsdl:message name="ProfileSearchSoapIn">
+    <wsdl:part name="parameters" element="tns:ProfileSearch" />
+  </wsdl:message>
+  <wsdl:message name="ProfileSearchSoapOut">
+    <wsdl:part name="parameters" element="tns:ProfileSearchResponse" />
+  </wsdl:message>
+  <wsdl:message name="DownloadSoapIn">
+    <wsdl:part name="parameters" element="tns:Download" />
+  </wsdl:message>
+  <wsdl:message name="DownloadSoapOut">
+    <wsdl:part name="parameters" element="tns:DownloadResponse" />
+  </wsdl:message>
+  <wsdl:message name="UpdateTargetProfileValueSoapIn">
+    <wsdl:part name="parameters" element="tns:UpdateTargetProfileValue" />
+  </wsdl:message>
+  <wsdl:message name="UpdateTargetProfileValueSoapOut">
+    <wsdl:part name="parameters" element="tns:UpdateTargetProfileValueResponse" />
+  </wsdl:message>
+  <wsdl:message name="DeleteDocumentSoapIn">
+    <wsdl:part name="parameters" element="tns:DeleteDocument" />
+  </wsdl:message>
+  <wsdl:message name="DeleteDocumentSoapOut">
+    <wsdl:part name="parameters" element="tns:DeleteDocumentResponse" />
+  </wsdl:message>
+  <wsdl:message name="LoginSoapIn">
+    <wsdl:part name="parameters" element="tns:Login" />
+  </wsdl:message>
+  <wsdl:message name="LoginSoapOut">
+    <wsdl:part name="parameters" element="tns:LoginResponse" />
+  </wsdl:message>
+  <wsdl:message name="LoadProfilesSoapIn">
+    <wsdl:part name="parameters" element="tns:LoadProfiles" />
+  </wsdl:message>
+  <wsdl:message name="LoadProfilesSoapOut">
+    <wsdl:part name="parameters" element="tns:LoadProfilesResponse" />
+  </wsdl:message>
+  <wsdl:message name="LoadProfileFieldSoapIn">
+    <wsdl:part name="parameters" element="tns:LoadProfileField" />
+  </wsdl:message>
+  <wsdl:message name="LoadProfileFieldSoapOut">
+    <wsdl:part name="parameters" element="tns:LoadProfileFieldResponse" />
+  </wsdl:message>
+  <wsdl:portType name="DocufloSDKSoap">
+    <wsdl:operation name="Export">
+      <wsdl:documentation xmlns:wsdl="http://schemas.xmlsoap.org/wsdl/">Export file from client to server</wsdl:documentation>
+      <wsdl:input message="tns:ExportSoapIn" />
+      <wsdl:output message="tns:ExportSoapOut" />
+    </wsdl:operation>
+    <wsdl:operation name="Search">
+      <wsdl:documentation xmlns:wsdl="http://schemas.xmlsoap.org/wsdl/">Search all profiles base on a keyword provided</wsdl:documentation>
+      <wsdl:input message="tns:SearchSoapIn" />
+      <wsdl:output message="tns:SearchSoapOut" />
+    </wsdl:operation>
+    <wsdl:operation name="SearchByDocID">
+      <wsdl:documentation xmlns:wsdl="http://schemas.xmlsoap.org/wsdl/">Search by Doc ID</wsdl:documentation>
+      <wsdl:input message="tns:SearchByDocIDSoapIn" />
+      <wsdl:output message="tns:SearchByDocIDSoapOut" />
+    </wsdl:operation>
+    <wsdl:operation name="ProfileSearch">
+      <wsdl:documentation xmlns:wsdl="http://schemas.xmlsoap.org/wsdl/">Search a certain profile</wsdl:documentation>
+      <wsdl:input message="tns:ProfileSearchSoapIn" />
+      <wsdl:output message="tns:ProfileSearchSoapOut" />
+    </wsdl:operation>
+    <wsdl:operation name="Download">
+      <wsdl:documentation xmlns:wsdl="http://schemas.xmlsoap.org/wsdl/">Retrieve a single file</wsdl:documentation>
+      <wsdl:input message="tns:DownloadSoapIn" />
+      <wsdl:output message="tns:DownloadSoapOut" />
+    </wsdl:operation>
+    <wsdl:operation name="UpdateTargetProfileValue">
+      <wsdl:documentation xmlns:wsdl="http://schemas.xmlsoap.org/wsdl/">Update target profile value base on a given value</wsdl:documentation>
+      <wsdl:input message="tns:UpdateTargetProfileValueSoapIn" />
+      <wsdl:output message="tns:UpdateTargetProfileValueSoapOut" />
+    </wsdl:operation>
+    <wsdl:operation name="DeleteDocument">
+      <wsdl:documentation xmlns:wsdl="http://schemas.xmlsoap.org/wsdl/">Delete Document From e-DMS</wsdl:documentation>
+      <wsdl:input message="tns:DeleteDocumentSoapIn" />
+      <wsdl:output message="tns:DeleteDocumentSoapOut" />
+    </wsdl:operation>
+    <wsdl:operation name="Login">
+      <wsdl:documentation xmlns:wsdl="http://schemas.xmlsoap.org/wsdl/">Login To e-DMS</wsdl:documentation>
+      <wsdl:input message="tns:LoginSoapIn" />
+      <wsdl:output message="tns:LoginSoapOut" />
+    </wsdl:operation>
+    <wsdl:operation name="LoadProfiles">
+      <wsdl:documentation xmlns:wsdl="http://schemas.xmlsoap.org/wsdl/">Load All e-DMS Profile</wsdl:documentation>
+      <wsdl:input message="tns:LoadProfilesSoapIn" />
+      <wsdl:output message="tns:LoadProfilesSoapOut" />
+    </wsdl:operation>
+    <wsdl:operation name="LoadProfileField">
+      <wsdl:documentation xmlns:wsdl="http://schemas.xmlsoap.org/wsdl/">Load Profile Field Of Selected e-DMS Profile</wsdl:documentation>
+      <wsdl:input message="tns:LoadProfileFieldSoapIn" />
+      <wsdl:output message="tns:LoadProfileFieldSoapOut" />
+    </wsdl:operation>
+  </wsdl:portType>
+  <wsdl:binding name="DocufloSDKSoap" type="tns:DocufloSDKSoap">
+    <soap:binding transport="http://schemas.xmlsoap.org/soap/http" />
+    <wsdl:operation name="Export">
+      <soap:operation soapAction="http://tempuri.org/DocufloSDK/Service1/Export" style="document" />
+      <wsdl:input>
+        <soap:body use="literal" />
+      </wsdl:input>
+      <wsdl:output>
+        <soap:body use="literal" />
+      </wsdl:output>
+    </wsdl:operation>
+    <wsdl:operation name="Search">
+      <soap:operation soapAction="http://tempuri.org/DocufloSDK/Service1/Search" style="document" />
+      <wsdl:input>
+        <soap:body use="literal" />
+      </wsdl:input>
+      <wsdl:output>
+        <soap:body use="literal" />
+      </wsdl:output>
+    </wsdl:operation>
+    <wsdl:operation name="SearchByDocID">
+      <soap:operation soapAction="http://tempuri.org/DocufloSDK/Service1/SearchByDocID" style="document" />
+      <wsdl:input>
+        <soap:body use="literal" />
+      </wsdl:input>
+      <wsdl:output>
+        <soap:body use="literal" />
+      </wsdl:output>
+    </wsdl:operation>
+    <wsdl:operation name="ProfileSearch">
+      <soap:operation soapAction="http://tempuri.org/DocufloSDK/Service1/ProfileSearch" style="document" />
+      <wsdl:input>
+        <soap:body use="literal" />
+      </wsdl:input>
+      <wsdl:output>
+        <soap:body use="literal" />
+      </wsdl:output>
+    </wsdl:operation>
+    <wsdl:operation name="Download">
+      <soap:operation soapAction="http://tempuri.org/DocufloSDK/Service1/Download" style="document" />
+      <wsdl:input>
+        <soap:body use="literal" />
+      </wsdl:input>
+      <wsdl:output>
+        <soap:body use="literal" />
+      </wsdl:output>
+    </wsdl:operation>
+    <wsdl:operation name="UpdateTargetProfileValue">
+      <soap:operation soapAction="http://tempuri.org/DocufloSDK/Service1/UpdateTargetProfileValue" style="document" />
+      <wsdl:input>
+        <soap:body use="literal" />
+      </wsdl:input>
+      <wsdl:output>
+        <soap:body use="literal" />
+      </wsdl:output>
+    </wsdl:operation>
+    <wsdl:operation name="DeleteDocument">
+      <soap:operation soapAction="http://tempuri.org/DocufloSDK/Service1/DeleteDocument" style="document" />
+      <wsdl:input>
+        <soap:body use="literal" />
+      </wsdl:input>
+      <wsdl:output>
+        <soap:body use="literal" />
+      </wsdl:output>
+    </wsdl:operation>
+    <wsdl:operation name="Login">
+      <soap:operation soapAction="http://tempuri.org/DocufloSDK/Service1/Login" style="document" />
+      <wsdl:input>
+        <soap:body use="literal" />
+      </wsdl:input>
+      <wsdl:output>
+        <soap:body use="literal" />
+      </wsdl:output>
+    </wsdl:operation>
+    <wsdl:operation name="LoadProfiles">
+      <soap:operation soapAction="http://tempuri.org/DocufloSDK/Service1/LoadProfiles" style="document" />
+      <wsdl:input>
+        <soap:body use="literal" />
+      </wsdl:input>
+      <wsdl:output>
+        <soap:body use="literal" />
+      </wsdl:output>
+    </wsdl:operation>
+    <wsdl:operation name="LoadProfileField">
+      <soap:operation soapAction="http://tempuri.org/DocufloSDK/Service1/LoadProfileField" style="document" />
+      <wsdl:input>
+        <soap:body use="literal" />
+      </wsdl:input>
+      <wsdl:output>
+        <soap:body use="literal" />
+      </wsdl:output>
+    </wsdl:operation>
+  </wsdl:binding>
+  <wsdl:binding name="DocufloSDKSoap12" type="tns:DocufloSDKSoap">
+    <soap12:binding transport="http://schemas.xmlsoap.org/soap/http" />
+    <wsdl:operation name="Export">
+      <soap12:operation soapAction="http://tempuri.org/DocufloSDK/Service1/Export" style="document" />
+      <wsdl:input>
+        <soap12:body use="literal" />
+      </wsdl:input>
+      <wsdl:output>
+        <soap12:body use="literal" />
+      </wsdl:output>
+    </wsdl:operation>
+    <wsdl:operation name="Search">
+      <soap12:operation soapAction="http://tempuri.org/DocufloSDK/Service1/Search" style="document" />
+      <wsdl:input>
+        <soap12:body use="literal" />
+      </wsdl:input>
+      <wsdl:output>
+        <soap12:body use="literal" />
+      </wsdl:output>
+    </wsdl:operation>
+    <wsdl:operation name="SearchByDocID">
+      <soap12:operation soapAction="http://tempuri.org/DocufloSDK/Service1/SearchByDocID" style="document" />
+      <wsdl:input>
+        <soap12:body use="literal" />
+      </wsdl:input>
+      <wsdl:output>
+        <soap12:body use="literal" />
+      </wsdl:output>
+    </wsdl:operation>
+    <wsdl:operation name="ProfileSearch">
+      <soap12:operation soapAction="http://tempuri.org/DocufloSDK/Service1/ProfileSearch" style="document" />
+      <wsdl:input>
+        <soap12:body use="literal" />
+      </wsdl:input>
+      <wsdl:output>
+        <soap12:body use="literal" />
+      </wsdl:output>
+    </wsdl:operation>
+    <wsdl:operation name="Download">
+      <soap12:operation soapAction="http://tempuri.org/DocufloSDK/Service1/Download" style="document" />
+      <wsdl:input>
+        <soap12:body use="literal" />
+      </wsdl:input>
+      <wsdl:output>
+        <soap12:body use="literal" />
+      </wsdl:output>
+    </wsdl:operation>
+    <wsdl:operation name="UpdateTargetProfileValue">
+      <soap12:operation soapAction="http://tempuri.org/DocufloSDK/Service1/UpdateTargetProfileValue" style="document" />
+      <wsdl:input>
+        <soap12:body use="literal" />
+      </wsdl:input>
+      <wsdl:output>
+        <soap12:body use="literal" />
+      </wsdl:output>
+    </wsdl:operation>
+    <wsdl:operation name="DeleteDocument">
+      <soap12:operation soapAction="http://tempuri.org/DocufloSDK/Service1/DeleteDocument" style="document" />
+      <wsdl:input>
+        <soap12:body use="literal" />
+      </wsdl:input>
+      <wsdl:output>
+        <soap12:body use="literal" />
+      </wsdl:output>
+    </wsdl:operation>
+    <wsdl:operation name="Login">
+      <soap12:operation soapAction="http://tempuri.org/DocufloSDK/Service1/Login" style="document" />
+      <wsdl:input>
+        <soap12:body use="literal" />
+      </wsdl:input>
+      <wsdl:output>
+        <soap12:body use="literal" />
+      </wsdl:output>
+    </wsdl:operation>
+    <wsdl:operation name="LoadProfiles">
+      <soap12:operation soapAction="http://tempuri.org/DocufloSDK/Service1/LoadProfiles" style="document" />
+      <wsdl:input>
+        <soap12:body use="literal" />
+      </wsdl:input>
+      <wsdl:output>
+        <soap12:body use="literal" />
+      </wsdl:output>
+    </wsdl:operation>
+    <wsdl:operation name="LoadProfileField">
+      <soap12:operation soapAction="http://tempuri.org/DocufloSDK/Service1/LoadProfileField" style="document" />
+      <wsdl:input>
+        <soap12:body use="literal" />
+      </wsdl:input>
+      <wsdl:output>
+        <soap12:body use="literal" />
+      </wsdl:output>
+    </wsdl:operation>
+  </wsdl:binding>
+  <wsdl:service name="DocufloSDK">
+    <wsdl:port name="DocufloSDKSoap" binding="tns:DocufloSDKSoap">
+      <soap:address location="http://192.168.70.120/e-DMSSDK/DocufloSDK.asmx" />
+    </wsdl:port>
+    <wsdl:port name="DocufloSDKSoap12" binding="tns:DocufloSDKSoap12">
+      <soap12:address location="http://192.168.70.120/e-DMSSDK/DocufloSDK.asmx" />
+    </wsdl:port>
+  </wsdl:service>
+</wsdl:definitions>

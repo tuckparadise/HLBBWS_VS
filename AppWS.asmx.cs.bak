@@ -1,0 +1,2785 @@
+﻿using System;
+using System.Collections.Generic;
+using System.Linq;
+using System.Web;
+using System.Web.Services;
+using System.Data.SqlClient;
+using System.Data;
+using System.Xml;
+using System.DirectoryServices;
+//using SourceCode.Hosting.Client;
+//using SourceCode.Workflow.Client;
+//using LOADS_API;
+using System.Security.Cryptography;
+using System.IO;
+using System.Text;
+
+namespace HLBBWS
+{
+    /// <summary>
+    /// Summary description for AppWS
+    /// </summary>
+    [WebService(Namespace = "http://tempuri.org/")]
+    [WebServiceBinding(ConformsTo = WsiProfiles.BasicProfile1_1)]
+    [System.ComponentModel.ToolboxItem(false)]
+    // To allow this Web Service to be called from script, using ASP.NET AJAX, uncomment the following line. 
+    // [System.Web.Script.Services.ScriptService]
+    public class AppWS : System.Web.Services.WebService
+    {
+        public enum EnumResponseType
+        {
+            ExportFile,
+            SearchFile,
+            DownloadFile,
+            DeleteFile,
+            CifDetailsInquiryByIDNo,
+            CifDetailsInquiryByCIFNum,
+            TradeTxnInquiry,
+            LdapAuthentication,
+            LdapSearchUser
+        }
+
+        public class LdapAuthenticationResponseData
+        {
+            public String Status;
+            public String ErrorCode;
+            public String ErrorMessage;
+
+            public String AccountName;
+            public String DisplayName;
+            public String Department;
+            public String Mail;
+        }
+
+        public class LdapSearchUserResponseData
+        {
+            public String Status;
+            public String ErrorCode;
+            public String ErrorMessage;
+
+            public String AccountName;
+            public String DisplayName;
+            public String Department;
+            public String Mail;
+        }
+
+        public class ExportFileResponseData
+        {
+            public String Status { get; set; }
+            public String ErrorCode { get; set; }
+            public String ErrorMessage { get; set; }
+
+            public ExportFileResponseData() { Status = "-1"; ErrorCode = ""; ErrorMessage = ""; }
+            public ExportFileResponseData(String strStatus, String strErrorCode, String strErrorMessage) { Status = strStatus; ErrorCode = strErrorCode; ErrorMessage = strErrorCode; }
+        }
+
+        public class DownloadFileResponseData
+        {
+            public String Status { get; set; }
+            public String ErrorCode { get; set; }
+            public String ErrorMessage { get; set; }
+            public String FileUrl { get; set; }
+
+            public DownloadFileResponseData() { Status = "-1"; ErrorCode = ""; ErrorMessage = ""; FileUrl = ""; }
+            public DownloadFileResponseData(String strStatus, String strErrorCode, String strErrorMessage, String strFileUrl) { Status = strStatus; ErrorCode = strErrorCode; ErrorMessage = strErrorCode; FileUrl = strFileUrl; }
+        }
+
+        public class SearchFileResponseData
+        {
+            public String Status { get; set; }
+            public String ErrorCode { get; set; }
+            public String ErrorMessage { get; set; }
+            public List<SearchFileResults> FileList;
+
+            public SearchFileResponseData() { Status = "-1"; ErrorCode = ""; ErrorMessage = ""; }
+            public SearchFileResponseData(String strStatus, String strErrorCode, String strErrorMessage, List<SearchFileResults> listResult) { Status = strStatus; ErrorCode = strErrorCode; ErrorMessage = strErrorCode; FileList = listResult; }
+        }
+        public class SearchFileResults
+        {
+            public String VerID;
+            public String ProfileID;
+            public String DocID;
+            public String ImageName;
+            public String FileSize;
+            public String Datecreated;
+
+            public String Field1;
+            public String Field2;
+            public String Field3;
+            public String Field4;
+            public String Field5;
+            public String Field6;
+            public String Field7;
+            public String Field8;
+            public String Field9;
+            public String Field10;
+
+            public String BatchNo;
+            public String BatchDesc;
+        }
+        public class SearchFileRequest
+        {
+            public String ColumnName;
+            public String ColumnKeyword;
+        }
+
+        public class DeleteFileResponseData
+        {
+            public String Status { get; set; }
+            public String ErrorCode { get; set; }
+            public String ErrorMessage { get; set; }
+        }
+
+        public class SearchCifResponseData
+        {
+            public String Status;
+            public String ErrorCode;
+            public String ErrorMessage;
+            public String ReasonCode;
+
+            public String CustName;
+            public String CifNum;
+            public String IDNum;
+        }
+        public class SearchTradeTxnResponseData
+        {
+            public String Status;
+            public String ErrorCode;
+            public String ErrorMessage;
+            public String ReasonCode;
+
+            public String OwnerCIFNo;
+            public String OwnerShortName;
+            public String ProductType;
+            public String BillAmt;
+            public String BankRefNo;
+        }
+
+        public string GetValueByPropertiesName(SearchResult adsSearchResult, string PropertiesName)
+        {
+            string strResult = "";
+            if (adsSearchResult.Properties.Contains(PropertiesName))
+            {
+                strResult = adsSearchResult.Properties[PropertiesName][0].ToString();
+            }
+            return strResult;
+        }
+
+        [WebMethod]
+        public LdapAuthenticationResponseData LdapAuthentication(string DomainName, string UserName, string Password)
+        {
+            LdapAuthenticationResponseData response = new LdapAuthenticationResponseData();
+            response.Status = "-1";
+            response.ErrorCode = "";
+            response.ErrorMessage = "";
+            response.AccountName = "";
+            response.DisplayName = "";
+            response.Department = "";
+            response.Mail = "";
+
+            try
+            {
+                string path = "LDAP://" + DomainName.Trim();
+                string strLoginAccountId = DomainName.Trim() + @"\" + UserName.Trim();
+                string strFindAccountId = UserName.Trim();
+                string strPassword = Password.Trim();
+
+                using (DirectoryEntry adsEntry = new DirectoryEntry(path, strLoginAccountId, strPassword))
+                {
+                    using (DirectorySearcher adsSearcher = new DirectorySearcher(adsEntry))
+                    {
+                        //adsSearcher.Filter = "(sAMAccountName=" + strFindAccountId + ")";
+                        adsSearcher.Filter = "(&(objectCategory=person)(objectClass=user)(sAMAccountName=" + strFindAccountId + "))";
+
+                            SearchResult adsSearchResult = adsSearcher.FindOne();
+                            //this.txtResult.Text = adsSearchResult.Path.ToString();
+                            clsLog.WriteSystemLog(clsLog.MessageType.Info, "Response", "Result=" + adsSearchResult.Path.ToString());
+
+                            response.AccountName = GetValueByPropertiesName(adsSearchResult, "samaccountname");
+                            response.DisplayName = GetValueByPropertiesName(adsSearchResult, "displayname");
+                            response.Department = GetValueByPropertiesName(adsSearchResult, "department");
+                            response.Mail = GetValueByPropertiesName(adsSearchResult, "mail");
+
+                            //response.AccountName = adsSearchResult.Properties["samaccountname"][0].ToString();
+                            //response.DisplayName = adsSearchResult.Properties["displayname"][0].ToString();
+                            //response.Department = adsSearchResult.Properties["department"][0].ToString();
+                            //response.Mail = adsSearchResult.Properties["mail"][0].ToString();
+
+                            response.Status = "1";
+                            response.ErrorCode = "";
+                            response.ErrorMessage = "";
+
+                            adsEntry.Close();
+                    }
+                }
+            }
+            catch (Exception ex)
+            {
+                response.Status = "-1";
+                response.ErrorCode = "1";
+                response.ErrorMessage = "Unexpected Error: " + ex.Message;
+                clsLog.WriteSystemLog(clsLog.MessageType.Error, "LdapAuthentication()", ex.Message + Environment.NewLine + ex.StackTrace);
+            }
+            finally
+            {
+                
+            }
+
+            clsLog.WriteSystemLog(clsLog.MessageType.Info, "Response", ConvertResponseToXmlText(EnumResponseType.LdapAuthentication, "UserName=" + DomainName + @"\" + UserName, response));
+            return response;
+        }
+
+        [WebMethod]
+        public LdapSearchUserResponseData LdapSearchUser(string DomainName, string UserName)
+        {
+            LdapSearchUserResponseData response = new LdapSearchUserResponseData();
+            response.Status = "-1";
+            response.ErrorCode = "";
+            response.ErrorMessage = "";
+            response.AccountName = "";
+            response.DisplayName = "";
+            response.Department = "";
+            response.Mail = "";
+
+            try
+            {
+                string path = "LDAP://" + DomainName.Trim();
+                //string strLoginAccountId = DomainName.Trim() + @"\" + UserName.Trim();
+                string strFindAccountId = UserName.Trim();
+                //string strPassword = Password.Trim();
+
+                using (DirectoryEntry adsEntry = new DirectoryEntry(path))
+                {
+                    using (DirectorySearcher adsSearcher = new DirectorySearcher(adsEntry))
+                    {
+                        adsSearcher.Filter = "(&(objectCategory=person)(objectClass=user)(sAMAccountName=" + strFindAccountId + "))";
+
+                        SearchResult adsSearchResult = adsSearcher.FindOne();
+                        if (adsSearchResult != null)
+                        {
+                            clsLog.WriteSystemLog(clsLog.MessageType.Info, "Response", "Result=" + adsSearchResult.Path.ToString());
+
+                            response.AccountName = GetValueByPropertiesName(adsSearchResult, "samaccountname");
+                            response.DisplayName = GetValueByPropertiesName(adsSearchResult, "displayname");
+                            response.Department = GetValueByPropertiesName(adsSearchResult, "department");
+                            response.Mail = GetValueByPropertiesName(adsSearchResult, "mail");
+
+                            response.Status = "1";
+                            response.ErrorCode = "";
+                            response.ErrorMessage = "";
+
+                        }
+                        else
+                        {
+                            clsLog.WriteSystemLog(clsLog.MessageType.Info, "Response", "Result=Account not found in domain server");
+
+                            response.Status = "0";
+                            response.ErrorCode = "";
+                            response.ErrorMessage = "Account not found in domain server";
+                        }
+                    }
+                    adsEntry.Close();
+                }
+            }
+            catch (Exception ex)
+            {
+                response.Status = "-1";
+                response.ErrorCode = "1";
+                response.ErrorMessage = "Unexpected Error: " + ex.Message;
+                clsLog.WriteSystemLog(clsLog.MessageType.Error, "LdapSearchUser()", ex.Message + Environment.NewLine + ex.StackTrace);
+            }
+            finally
+            {
+
+            }
+
+            clsLog.WriteSystemLog(clsLog.MessageType.Info, "Response", ConvertResponseToXmlText(EnumResponseType.LdapSearchUser, "UserName=" + DomainName + @"\" + UserName, response));
+            return response;
+        }
+
+        [WebMethod]
+        public SearchFileResponseData SearchFileFromEDMS(string ProfileName, string RefNo, List<SearchFileRequest> SearchFile)
+        {
+            SearchFileResponseData response = new SearchFileResponseData();
+
+            System.ServiceModel.BasicHttpBinding binding = null;
+            EDMS_WSSDK.WSSDKSoapClient client = null;
+
+            List<SearchFileResults> fl = new List<SearchFileResults>();
+            SearchFileResults sfr = null;
+
+            try
+            {
+                //Specify the binding to be used for the client.
+                binding = new System.ServiceModel.BasicHttpBinding();
+                client = new EDMS_WSSDK.WSSDKSoapClient("WSSDKSoap", clsGlobal.EDMS_HOST_URL);
+
+                string strChannelID = clsGlobal.EDMS_HOST_ID;
+                string strErrorCode = "";
+                string strErrorMsg = "";
+                bool blnHasFailed = false;
+
+                if (SearchFile.Count > 0)
+                {
+                    string[] strColumns = new String[SearchFile.Count];
+                    string[] strKeywords = new String[SearchFile.Count];
+                    for (int i = 0; i < SearchFile.Count; i++)
+                    {
+                        strColumns[i] = SearchFile[i].ColumnName;
+                        strKeywords[i] = SearchFile[i].ColumnKeyword;
+                    }
+
+                    EDMS_WSSDK.DataProfileResult1[] dpResult = client.ProfileSearch(ProfileName, strColumns, strKeywords, strChannelID, ref strErrorCode, ref strErrorMsg);
+                    clsLog.WriteSystemLog(clsLog.MessageType.Info, "Response", "Result=" + dpResult.Length.ToString());
+                    if (strErrorCode == "0")
+                    {
+                        for (int i = 0; i < dpResult.Length; i++)
+                        {
+                            sfr = new SearchFileResults();
+                            sfr.VerID = dpResult[i].VerID.ToString();
+                            sfr.ProfileID = dpResult[i].ProfileID.ToString();
+                            sfr.ImageName = dpResult[i].ImageName.ToString();
+                            sfr.FileSize = dpResult[i].FileSize.ToString();
+                            sfr.DocID = dpResult[i].DocID.ToString();
+                            sfr.Datecreated = dpResult[i].Datecreated.ToString();
+
+                            EDMS_WSSDK.DataColumn1[] arr = dpResult[i].Arr_DataValue;
+                            if (arr != null)
+                            {
+                                for (int x = 0; x < arr.Length; x++)
+                                {
+                                    if (arr[x].Col_Name.ToUpper() == "FIELD1")
+                                    {
+                                        sfr.Field1 = arr[x].ProfileValue;
+                                    }
+                                    else if (arr[x].Col_Name.ToUpper() == "FIELD2")
+                                    {
+                                        sfr.Field2 = arr[x].ProfileValue;
+                                    }
+                                    else if (arr[x].Col_Name.ToUpper() == "FIELD3")
+                                    {
+                                        sfr.Field3 = arr[x].ProfileValue;
+                                    }
+                                    else if (arr[x].Col_Name.ToUpper() == "FIELD4")
+                                    {
+                                        sfr.Field4 = arr[x].ProfileValue;
+                                    }
+                                    else if (arr[x].Col_Name.ToUpper() == "FIELD5")
+                                    {
+                                        sfr.Field5 = arr[x].ProfileValue;
+                                    }
+                                    else if (arr[x].Col_Name.ToUpper() == "FIELD6")
+                                    {
+                                        sfr.Field6 = arr[x].ProfileValue;
+                                    }
+                                    else if (arr[x].Col_Name.ToUpper() == "FIELD7")
+                                    {
+                                        sfr.Field7 = arr[x].ProfileValue;
+                                    }
+                                    else if (arr[x].Col_Name.ToUpper() == "FIELD8")
+                                    {
+                                        sfr.Field8 = arr[x].ProfileValue;
+                                    }
+                                    else if (arr[x].Col_Name.ToUpper() == "FIELD9")
+                                    {
+                                        sfr.Field9 = arr[x].ProfileValue;
+                                    }
+                                    else if (arr[x].Col_Name.ToUpper() == "FIELD10")
+                                    {
+                                        sfr.Field10 = arr[x].ProfileValue;
+                                    }
+                                    else if (arr[x].Col_Name.ToUpper() == "BATCH NO")
+                                    {
+                                        sfr.BatchNo = arr[x].ProfileValue;
+                                    }
+                                    else if (arr[x].Col_Name.ToUpper() == "BATCH DESCRIPTION")
+                                    {
+                                        sfr.BatchDesc = arr[x].ProfileValue;
+                                    }
+                                }
+                            }
+
+                            fl.Add(sfr);
+                        }
+
+                        if (!blnHasFailed)
+                        {
+                            response.Status = "1";
+                            response.ErrorCode = "";
+                            response.ErrorMessage = "";
+                            response.FileList = fl;
+                        }
+                    }
+                    else
+                    {
+                        blnHasFailed = true;
+                        response.Status = "-1";
+                        response.ErrorCode = strErrorCode;
+                        response.ErrorMessage = strErrorMsg;
+                    }
+                }
+                else
+                {
+                    response.Status = "0";
+                    response.ErrorCode = "";
+                    response.ErrorMessage = "Warning: No record found";
+                }
+            }
+            catch (Exception ex)
+            {
+                response.Status = "-1";
+                response.ErrorCode = "1";
+                response.ErrorMessage = "Unexpected Error: " + ex.Message;
+                clsLog.WriteSystemLog(clsLog.MessageType.Error, "SearchFileFromEDMS()", ex.Message + Environment.NewLine + ex.StackTrace);
+            }
+            finally
+            {
+                fl = null;
+                sfr = null;
+
+                binding = null;
+                client = null;
+            }
+
+            clsLog.WriteSystemLog(clsLog.MessageType.Info, "Response", ConvertResponseToXmlText(EnumResponseType.SearchFile, "RefNo=" + RefNo, response));
+            return response;
+        }
+
+        [WebMethod]
+        public DownloadFileResponseData DownloadFileFromEDMS(string RefNo, string UserName, string VerID, string ProfileID, string FileType)
+        {
+            DownloadFileResponseData response = new DownloadFileResponseData();
+
+            System.ServiceModel.BasicHttpBinding binding = null;
+            EDMS_WSSDK.WSSDKSoapClient client = null;
+
+            try
+            {
+                //Specify the binding to be used for the client.
+                binding = new System.ServiceModel.BasicHttpBinding();
+                client = new EDMS_WSSDK.WSSDKSoapClient("WSSDKSoap", clsGlobal.EDMS_HOST_URL);
+
+                string strChannelID = clsGlobal.EDMS_HOST_ID;
+                string strErrorCode = "";
+                string strErrorMsg = "";
+                string strFileUrl = "";
+                string strResult = "";
+                bool blnHasFailed = false;
+
+                strResult = client.ViewFile_with_Requestor(Convert.ToInt64(VerID), Convert.ToInt64(ProfileID), Convert.ToInt16(FileType), ref strFileUrl, strChannelID, ref strErrorCode, ref strErrorMsg);
+                clsLog.WriteSystemLog(clsLog.MessageType.Info, "Response", "Result=" + strResult);
+                if (strResult == "1")
+                {
+                    response.FileUrl = strFileUrl;
+                }
+                else
+                {
+                    blnHasFailed = true;
+                    response.Status = strResult;
+                    response.ErrorCode = strErrorCode;
+                    response.ErrorMessage = strErrorMsg;
+                }
+
+                if (!blnHasFailed)
+                {
+                    response.Status = "1";
+                    response.ErrorCode = "";
+                    response.ErrorMessage = "";
+                }
+            }
+            catch (Exception ex)
+            {
+                response.Status = "-1";
+                response.ErrorCode = "1";
+                response.ErrorMessage = "Unexpected Error: " + ex.Message;
+                clsLog.WriteSystemLog(clsLog.MessageType.Error, "DownloadFileFromEDMS()", ex.Message + Environment.NewLine + ex.StackTrace);
+            }
+            finally
+            {
+                binding = null;
+                client = null;
+            }
+
+            clsLog.WriteSystemLog(clsLog.MessageType.Info, "Response", ConvertResponseToXmlText(EnumResponseType.DownloadFile, "RefNo=" + RefNo, response));
+            return response;
+        }
+
+        [WebMethod]
+        public ExportFileResponseData ExportK2FileToEDMS(string ProfileName, string RefNo, string UserName)
+        {
+            ExportFileResponseData response = new ExportFileResponseData();
+            DataSet ds = null;
+            DataTable dt = null;
+            SqlConnection conn = null;
+            SqlDataAdapter sqlDA = null;
+
+            System.ServiceModel.BasicHttpBinding binding = null;
+            EDMS_WSSDK.WSSDKSoapClient client = null;
+
+            try
+            {
+                string strDataSource = clsGlobal.TSW_SQL_DATA_SOURCE;
+                string strDBName = clsGlobal.TSW_SQL_DB_NAME;
+                string strID = clsGlobal.TSW_SQL_ID;
+                string strPassword = clsGlobal.TSW_SQL_PASSWORD;
+                bool blnIsWinAuth = clsGlobal.TSW_SQL_IS_WIN_AUTH;
+
+                string connstr = @"Data Source=" + strDataSource + ";Initial Catalog=" + strDBName + ";Persist Security Info=True;User ID=" + strID + ";Password=" + strPassword;
+                if (blnIsWinAuth)
+                {
+                    connstr = @"Data Source=" + strDataSource + ";Initial Catalog=" + strDBName + ";Integrated Security=True;";
+                }
+                conn = new SqlConnection(connstr);
+                conn.Open();
+
+                sqlDA = new SqlDataAdapter();
+                sqlDA.SelectCommand = new SqlCommand("SELECT * FROM TBL_TASK_UPLOAD_DOC WHERE [RefNo]='" + RefNo + "' AND [IsUploaded]=0 AND [Status]=1", conn);
+                ds = new DataSet("ds");
+                sqlDA.Fill(ds);
+                dt = ds.Tables[0];
+
+                conn.Close();
+
+                //Specify the binding to be used for the client.
+                binding = new System.ServiceModel.BasicHttpBinding();
+                client = new EDMS_WSSDK.WSSDKSoapClient("WSSDKSoap", clsGlobal.EDMS_HOST_URL);
+                if (dt.Rows.Count > 0)
+                {
+                    string strChannelID = clsGlobal.EDMS_HOST_ID;
+                    System.Xml.XmlDocument xmlDoc = null;
+                    System.Xml.XmlNodeList xmlNodeList = null;
+                    string strErrorCode = "";
+                    string strErrorMsg = "";
+                    string strResult = "";
+
+                    bool blnHasFailed = false;
+
+                    int intDocID = -1;
+                    byte[] byteFileContent = null;
+                    string strFileName = "";
+                    string strProfile = "";
+                    string strFolderName = "";
+                    string strValue1 = "";
+                    string strValue2 = "";
+                    string strValue3 = "";
+                    string strValue4 = "";
+                    string strValue5 = "";
+                    string strValue6 = "";
+                    string strValue7 = "";
+                    string strValue8 = "";
+                    string strValue9 = "";
+                    string strValue10 = "";
+
+                    for (int i = 0; i < dt.Rows.Count; i++)
+                    {
+                        xmlDoc = new System.Xml.XmlDocument();
+                        xmlDoc.LoadXml(dt.Rows[i]["FileContent"].ToString());
+                        xmlNodeList = xmlDoc.GetElementsByTagName("content");
+
+                        //System.Diagnostics.Debug.Write(xmlNodeList[0].InnerText);
+                        intDocID = Convert.ToInt32(dt.Rows[i]["ID"].ToString());
+                        byteFileContent = Convert.FromBase64String(xmlNodeList[0].InnerText);
+                        strFileName = dt.Rows[i]["FileName"].ToString();
+                        strProfile = dt.Rows[i]["EdmsProfile"].ToString();
+                        strFolderName = dt.Rows[i]["EdmsFolderName"].ToString();
+                        //string strFolderName = "HLBB>dsp_stm_apppool";
+
+                        strValue1 = dt.Rows[i]["EdmsValue1"].ToString();
+                        strValue2 = dt.Rows[i]["EdmsValue2"].ToString();
+                        strValue3 = dt.Rows[i]["EdmsValue3"].ToString();
+                        strValue4 = dt.Rows[i]["EdmsValue4"].ToString();
+                        strValue5 = dt.Rows[i]["EdmsValue5"].ToString();
+                        strValue6 = dt.Rows[i]["EdmsValue6"].ToString();
+                        strValue7 = dt.Rows[i]["EdmsValue7"].ToString();
+                        strValue8 = dt.Rows[i]["EdmsValue8"].ToString();
+                        strValue9 = dt.Rows[i]["EdmsValue9"].ToString();
+                        strValue10 = dt.Rows[i]["EdmsValue10"].ToString();
+
+                        strResult = client.Export(byteFileContent, strFileName, strProfile, strFolderName, new string[] { strValue1, strValue2, strValue3, strValue4, strValue5, strValue6, strValue7, strValue8, strValue9, strValue10 }, strChannelID, ref strErrorCode, ref strErrorMsg);   //client.Download(intVerID, intProfileID, intDocType, ref strFileName, ref byteDoc);
+                        clsLog.WriteSystemLog(clsLog.MessageType.Info, "Response", "Result=" + strResult);
+                        if (strResult == "1")
+                        {
+                            conn.Open();
+                            SqlCommand sqlCmd = new SqlCommand("UPDATE TBL_TASK_UPLOAD_DOC SET [IsUploaded]=1 WHERE [ID]=" + intDocID.ToString(), conn);
+                            sqlCmd.ExecuteNonQuery();
+                            conn.Close();
+                        }
+                        else
+                        {
+                            blnHasFailed = true;
+                            response.Status = strResult;
+                            response.ErrorCode = strErrorCode;
+                            response.ErrorMessage = "File (" + strFileName + ") " + strErrorMsg;
+                        }
+                    }
+
+                    if (!blnHasFailed)
+                    {
+                        response.Status = "1";
+                        response.ErrorCode = "";
+                        response.ErrorMessage = "";
+                    }
+                }
+                else
+                {
+                    response.Status = "0";
+                    response.ErrorCode = "";
+                    response.ErrorMessage = "Warning: No record found";
+                }
+            }
+            catch (Exception ex)
+            {
+                response.Status = "-1";
+                response.ErrorCode = "1";
+                response.ErrorMessage = "Unexpected Error: " + ex.Message;
+                clsLog.WriteSystemLog(clsLog.MessageType.Error, "ExportK2FileToEDMS()", ex.Message + Environment.NewLine + ex.StackTrace);
+            }
+            finally
+            {
+                if(conn != null)
+                {
+                    if (conn.State != ConnectionState.Closed)
+                    {
+                        conn.Close();
+                    }
+                    conn = null;
+                }
+
+                ds = null;
+                dt = null;
+                sqlDA = null;
+
+                binding = null;
+                client = null;
+            }
+
+            clsLog.WriteSystemLog(clsLog.MessageType.Info, "Response", ConvertResponseToXmlText(EnumResponseType.ExportFile, "RefNo=" + RefNo, response));
+            return response;
+        }
+
+        ///<summary>
+        ///DeleteFileFromEDMS | EDMS | To delete file by DocID and ProfileID
+        ///</summary>
+        [WebMethod]
+        public DeleteFileResponseData DeleteFileFromEDMS(string DocID, string ProfileID, string RequestorID)
+        {
+            DeleteFileResponseData response = new DeleteFileResponseData();
+
+            System.ServiceModel.BasicHttpBinding binding = null;
+            EDMS_WSSDK.WSSDKSoapClient client = null;
+
+            try
+            {
+                //Specify the binding to be used for the client.
+                binding = new System.ServiceModel.BasicHttpBinding();
+                client = new EDMS_WSSDK.WSSDKSoapClient("WSSDKSoap", clsGlobal.EDMS_HOST_URL);
+
+                string strChannelID = clsGlobal.EDMS_HOST_ID;
+                string strErrorCode = "";
+                string strErrorMsg = "";
+                string strResult = "";
+                bool blnHasFailed = false;
+
+                strResult = client.DeleteDocument(DocID, ProfileID, RequestorID, ref strErrorCode, ref strErrorMsg);
+                clsLog.WriteSystemLog(clsLog.MessageType.Info, "Response", "Result=" + strResult);
+                if (strResult == "1")
+                {
+                    //-- successful --
+                }
+                else
+                {
+                    //-- failed --
+                    blnHasFailed = true;
+                    response.Status = strResult;
+                    response.ErrorCode = strErrorCode;
+                    response.ErrorMessage = strErrorMsg;
+                }
+
+                if (!blnHasFailed)
+                {
+                    response.Status = "1";
+                    response.ErrorCode = "";
+                    response.ErrorMessage = "";
+                }
+            }
+            catch (Exception ex)
+            {
+                response.Status = "-1";
+                response.ErrorCode = "1";
+                response.ErrorMessage = "Unexpected Error: " + ex.Message;
+                clsLog.WriteSystemLog(clsLog.MessageType.Error, "DeleteFileFromEDMS()", ex.Message + Environment.NewLine + ex.StackTrace);
+            }
+            finally
+            {
+                binding = null;
+                client = null;
+            }
+
+            clsLog.WriteSystemLog(clsLog.MessageType.Info, "Response", ConvertResponseToXmlText(EnumResponseType.DeleteFile, "DocID=" + DocID + ",ProfileID=" + ProfileID, response));
+            return response;
+        }
+
+        ///<summary>
+        ///CifDetailsInquiry | EAI:120001 | Host:5000,5001 | To retrieve cif details by ID no. and ID type
+        ///</summary>
+        [WebMethod]
+        public SearchCifResponseData CifDetailsInquiryByIDNo(string IDNo, string IDType)
+        {
+            SearchCifResponseData response = new SearchCifResponseData();
+            response.Status = "-1";
+            response.ErrorCode = "";
+            response.ErrorMessage = "";
+            response.ReasonCode = "";
+            response.CustName = "";
+            response.CifNum = "";
+            response.IDNum = "";
+
+            DateTime dateBiz = DateTime.Now;
+            string strTellerID = clsGlobal.EAI_REQUEST_TELLER_ID;
+            string strBranchCode = clsGlobal.EAI_REQUEST_BRANCH_CODE;
+            string strCtrlUnit = clsGlobal.EAI_REQUEST_CONTROLLER_ID;
+
+            DateTime BizDate = DateTime.Now;
+            if (clsGlobal.EAI_CUSTOM_BIZ_DATE != "")
+            {
+                BizDate = Convert.ToDateTime(clsGlobal.EAI_CUSTOM_BIZ_DATE);
+            }
+            string strXml = clsGetXml.GET_EAI_120001_XML(BizDate, strTellerID, strBranchCode, strCtrlUnit, IDNo, IDType);  //120001
+
+            try
+            {
+                EAIWebService.XmlHolder objXmlHolder = new EAIWebService.XmlHolder();
+                objXmlHolder.content = strXml;
+                objXmlHolder.securedContent = false;
+                objXmlHolder.user = clsGlobal.EAI_HOST_ID;      //"user_eiws";
+                //objXmlHolder.OID = null;
+                objXmlHolder.password = clsGlobal.EAI_HOST_PWD;  //"19e6492df3a767815d5eeddf5327004d7e8b5a9bfd0a996f7f60c9e5dc7e16dd";
+                objXmlHolder.securedPassword = false;
+
+                //Specify the binding to be used for the client.
+                System.ServiceModel.BasicHttpBinding binding = new System.ServiceModel.BasicHttpBinding();
+                EAIWebService.EAIDelegateBeanClient client = new EAIWebService.EAIDelegateBeanClient("EAIDelegateBean", clsGlobal.EAI_HOST_URL);             //"http://10.3.14.188:9083/HLBWS/services/EAIDelegateBean");        //UAT
+                client.InnerChannel.OperationTimeout = TimeSpan.FromSeconds(Convert.ToDouble(clsGlobal.EAI_HOST_TIMEOUT));
+                EAIWebService.XmlHolder result = client.serviceRequest(clsGlobal.EAI_WEB_SERVICE_ID, objXmlHolder);   //WEB Service ID
+
+                if (!String.IsNullOrEmpty(result.content))
+                {
+                    XmlDocument xmlDoc = new XmlDocument();
+                    xmlDoc.LoadXml(result.content);
+                    clsLog.WriteSystemLog(clsLog.MessageType.Info, "Response", "Result=" + result.content.ToString());
+
+                    //Display all the book titles.
+                    if (xmlDoc.GetElementsByTagName("ErrorCode").Count > 0)
+                    {
+                        response.ErrorCode = DecodeXmlSpecialCode(xmlDoc.GetElementsByTagName("ErrorCode").Item(0).InnerText);
+                        response.ErrorMessage = DecodeXmlSpecialCode(xmlDoc.GetElementsByTagName("ErrorMsg").Item(0).InnerText);
+
+                        if (xmlDoc.GetElementsByTagName("ReasonCode").Count > 0)
+                        {
+                            response.ReasonCode = DecodeXmlSpecialCode(xmlDoc.GetElementsByTagName("ReasonCode").Item(0).InnerText);
+                            //if (ReasonCode == "1")
+                            //{
+                            //    response.ErrorMessage = "CIF not found in host.";
+                            //}
+                        }
+                        response.Status = "0";
+                    }
+                    else
+                    {
+                        response.CustName = DecodeXmlSpecialCode(xmlDoc.GetElementsByTagName("CustName1").Item(0).InnerXml);
+                        response.CifNum = DecodeXmlSpecialCode(xmlDoc.GetElementsByTagName("CIFNum").Item(0).InnerXml);
+                        response.IDNum = DecodeXmlSpecialCode(xmlDoc.GetElementsByTagName("IDNum").Item(0).InnerXml);
+                        response.Status = "1";
+                    }
+                }
+                else
+                {
+                    response.Status = "0";
+                }
+            }
+            catch (Exception ex)
+            {
+                response.Status = "-1";
+                response.ErrorCode = "1";
+                response.ErrorMessage = "Unexpected Error: " + ex.Message;
+                clsLog.WriteSystemLog(clsLog.MessageType.Error, "CifDetailsInquiryByIDNo()", ex.Message + Environment.NewLine + ex.StackTrace);
+            }
+
+            clsLog.WriteSystemLog(clsLog.MessageType.Info, "Response", ConvertResponseToXmlText(EnumResponseType.CifDetailsInquiryByIDNo, "IDNo=" + IDNo, response));
+            return response;
+        }
+
+        ///<summary>
+        ///CifDetailsInquiry | EAI:120001 | Host:5000,5001 | To retrieve cif details by ID no. and ID type
+        ///</summary>
+        [WebMethod]
+        public SearchCifResponseData CifDetailsInquiryByCifNum(string CIFNum)
+        {
+            SearchCifResponseData response = new SearchCifResponseData();
+            response.Status = "-1";
+            response.ErrorCode = "";
+            response.ErrorMessage = "";
+            response.ReasonCode = "";
+            response.CustName = "";
+            response.CifNum = "";
+            response.IDNum = "";
+
+            DateTime dateBiz = DateTime.Now;
+            string strTellerID = clsGlobal.EAI_REQUEST_TELLER_ID;
+            string strBranchCode = clsGlobal.EAI_REQUEST_BRANCH_CODE;
+            string strCtrlUnit = clsGlobal.EAI_REQUEST_CONTROLLER_ID;
+
+            DateTime BizDate = DateTime.Now;
+            if (clsGlobal.EAI_CUSTOM_BIZ_DATE != "")
+            {
+                BizDate = Convert.ToDateTime(clsGlobal.EAI_CUSTOM_BIZ_DATE);
+            }
+            string strXml = clsGetXml.GET_EAI_120001_XML(BizDate, strTellerID, strBranchCode, strCtrlUnit, CIFNum);  //120001
+
+            try
+            {
+                EAIWebService.XmlHolder objXmlHolder = new EAIWebService.XmlHolder();
+                objXmlHolder.content = strXml;
+                objXmlHolder.securedContent = false;
+                objXmlHolder.user = clsGlobal.EAI_HOST_ID;      //"user_eiws";
+                //objXmlHolder.OID = null;
+                objXmlHolder.password = clsGlobal.EAI_HOST_PWD;  //"19e6492df3a767815d5eeddf5327004d7e8b5a9bfd0a996f7f60c9e5dc7e16dd";
+                objXmlHolder.securedPassword = false;
+
+                //Specify the binding to be used for the client.
+                System.ServiceModel.BasicHttpBinding binding = new System.ServiceModel.BasicHttpBinding();
+                EAIWebService.EAIDelegateBeanClient client = new EAIWebService.EAIDelegateBeanClient("EAIDelegateBean", clsGlobal.EAI_HOST_URL);             //"http://10.3.14.188:9083/HLBWS/services/EAIDelegateBean");        //UAT
+                client.InnerChannel.OperationTimeout = TimeSpan.FromSeconds(Convert.ToDouble(clsGlobal.EAI_HOST_TIMEOUT));
+                EAIWebService.XmlHolder result = client.serviceRequest(clsGlobal.EAI_WEB_SERVICE_ID, objXmlHolder);   //WEB Service ID
+
+                if (!String.IsNullOrEmpty(result.content))
+                {
+                    XmlDocument xmlDoc = new XmlDocument();
+                    xmlDoc.LoadXml(result.content);
+                    clsLog.WriteSystemLog(clsLog.MessageType.Info, "Response", "Result=" + result.content.ToString());
+
+                    //Display all the book titles.
+                    if (xmlDoc.GetElementsByTagName("ErrorCode").Count > 0)
+                    {
+                        response.ErrorCode = DecodeXmlSpecialCode(xmlDoc.GetElementsByTagName("ErrorCode").Item(0).InnerText);
+                        response.ErrorMessage = DecodeXmlSpecialCode(xmlDoc.GetElementsByTagName("ErrorMsg").Item(0).InnerText);
+
+                        if (xmlDoc.GetElementsByTagName("ReasonCode").Count > 0)
+                        {
+                            response.ReasonCode = DecodeXmlSpecialCode(xmlDoc.GetElementsByTagName("ReasonCode").Item(0).InnerText);
+                            //if (ReasonCode == "1")
+                            //{
+                            //    response.ErrorMessage = "CIF not found in host.";
+                            //}
+                        }
+                        response.Status = "0";
+                    }
+                    else
+                    {
+                        response.CustName = DecodeXmlSpecialCode(xmlDoc.GetElementsByTagName("CustName1").Item(0).InnerXml);
+                        response.CifNum = DecodeXmlSpecialCode(xmlDoc.GetElementsByTagName("CIFNum").Item(0).InnerXml);
+                        response.IDNum = DecodeXmlSpecialCode(xmlDoc.GetElementsByTagName("IDNum").Item(0).InnerXml);
+                        response.Status = "1";
+                    }
+                }
+                else
+                {
+                    response.Status = "0";
+                }
+            }
+            catch (Exception ex)
+            {
+                response.Status = "-1";
+                response.ErrorCode = "1";
+                response.ErrorMessage = "Unexpected Error: " + ex.Message;
+                clsLog.WriteSystemLog(clsLog.MessageType.Error, "CifDetailsInquiryByCIFNum()", ex.Message + Environment.NewLine + ex.StackTrace);
+            }
+
+            clsLog.WriteSystemLog(clsLog.MessageType.Info, "Response", ConvertResponseToXmlText(EnumResponseType.CifDetailsInquiryByCIFNum, "CIFNum=" + CIFNum, response));
+            return response;
+        }
+
+        ///<summary>
+        ///TradeTransDetailsInquiry | EAI:110082 | Host:MB61366 | To retrieve trade transaction details by trade reference no.
+        ///</summary>
+        [WebMethod]
+        public SearchTradeTxnResponseData TradeTransDetailsInquiry(string TFRef)
+        {
+
+            SearchTradeTxnResponseData response = new SearchTradeTxnResponseData();
+            response.Status = "-1";
+            response.ErrorCode = "";
+            response.ErrorMessage = "";
+            response.ReasonCode = "";
+            response.OwnerCIFNo = "";
+            response.OwnerShortName = "";
+            response.ProductType = "";
+            response.BillAmt = "";
+            response.BankRefNo = "";
+
+            DateTime dateBiz = DateTime.Now;
+            string strTellerID = clsGlobal.EAI_REQUEST_TELLER_ID;
+            string strBranchCode = clsGlobal.EAI_REQUEST_BRANCH_CODE;
+            string strCtrlUnit = clsGlobal.EAI_REQUEST_CONTROLLER_ID;
+
+            DateTime BizDate = DateTime.Now;
+            if (clsGlobal.EAI_CUSTOM_BIZ_DATE != "")
+            {
+                BizDate = Convert.ToDateTime(clsGlobal.EAI_CUSTOM_BIZ_DATE);
+            }
+            string strXml = clsGetXml.GET_EAI_110082_XML(BizDate, clsGlobal.EAI_TRANS_USER_ID, strTellerID, strBranchCode, strCtrlUnit, TFRef);  //110082
+
+            try
+            {
+                EAIWebService.XmlHolder objXmlHolder = new EAIWebService.XmlHolder();
+                objXmlHolder.content = strXml;
+                objXmlHolder.securedContent = false;
+                objXmlHolder.user = clsGlobal.EAI_HOST_ID;      //"user_eiws";
+                //objXmlHolder.OID = null;
+                objXmlHolder.password = clsGlobal.EAI_HOST_PWD;  //"19e6492df3a767815d5eeddf5327004d7e8b5a9bfd0a996f7f60c9e5dc7e16dd";
+                objXmlHolder.securedPassword = false;
+
+                //Specify the binding to be used for the client.
+                System.ServiceModel.BasicHttpBinding binding = new System.ServiceModel.BasicHttpBinding();
+                EAIWebService.EAIDelegateBeanClient client = new EAIWebService.EAIDelegateBeanClient("EAIDelegateBean", clsGlobal.EAI_HOST_URL);             //"http://10.3.14.188:9083/HLBWS/services/EAIDelegateBean");        //UAT
+                client.InnerChannel.OperationTimeout = TimeSpan.FromSeconds(Convert.ToDouble(clsGlobal.EAI_HOST_TIMEOUT));
+                EAIWebService.XmlHolder result = client.serviceRequest(clsGlobal.EAI_MBASE_SERVICE_ID, objXmlHolder);   //MBASE Service ID
+
+                if (!String.IsNullOrEmpty(result.content))
+                {
+                    XmlDocument xmlDoc = new XmlDocument();
+                    xmlDoc.LoadXml(result.content);
+                    clsLog.WriteSystemLog(clsLog.MessageType.Info, "Response", "Result=" + result.content.ToString());
+
+                    //Display all the book titles.
+                    if (xmlDoc.GetElementsByTagName("ErrorCode").Count > 0)
+                    {
+                        response.ErrorCode = DecodeXmlSpecialCode(xmlDoc.GetElementsByTagName("ErrorCode").Item(0).InnerText);
+                        response.ErrorMessage = DecodeXmlSpecialCode(xmlDoc.GetElementsByTagName("ErrorMsg").Item(0).InnerText);
+
+                        if (xmlDoc.GetElementsByTagName("ReasonCode").Count > 0)
+                        {
+                            response.ReasonCode = DecodeXmlSpecialCode(xmlDoc.GetElementsByTagName("ReasonCode").Item(0).InnerText);
+                            //if (ReasonCode == "1")
+                            //{
+                            //    response.ErrorMessage = "CIF not found in host.";
+                            //}
+                        }
+                        response.Status = "0";
+                    }
+                    else
+                    {
+                        response.OwnerCIFNo = DecodeXmlSpecialCode(xmlDoc.GetElementsByTagName("OwnerCIFNo").Item(0).InnerXml);
+                        response.OwnerShortName = DecodeXmlSpecialCode(xmlDoc.GetElementsByTagName("OwnerShortName").Item(0).InnerXml);
+                        response.ProductType = DecodeXmlSpecialCode(xmlDoc.GetElementsByTagName("ProductType").Item(0).InnerXml);
+                        response.BillAmt = DecodeXmlSpecialCode(xmlDoc.GetElementsByTagName("BillAmt").Item(0).InnerXml);
+                        response.BankRefNo = DecodeXmlSpecialCode(xmlDoc.GetElementsByTagName("BankRefNo").Item(0).InnerXml);
+                        response.Status = "1";
+                    }
+                }
+                else
+                {
+                    response.Status = "0";
+                }
+            }
+            catch (Exception ex)
+            {
+                response.Status = "-1";
+                response.ErrorCode = "1";
+                response.ErrorMessage = "Unexpected Error: " + ex.Message;
+                clsLog.WriteSystemLog(clsLog.MessageType.Error, "TradeTransDetailsInquiry()", ex.Message + Environment.NewLine + ex.StackTrace);
+            }
+
+            clsLog.WriteSystemLog(clsLog.MessageType.Info, "Response", ConvertResponseToXmlText(EnumResponseType.TradeTxnInquiry, "TFRef=" + TFRef, response));
+            return response;
+        }
+
+        ///// <summary>
+        ///// Test
+        ///// </summary>
+        ///// <param name="TFRef"></param>
+        ///// <returns></returns>
+        //[WebMethod]
+        //public string SetOutOfOffice()
+        //{
+        //    string strResult = "0";
+
+        //    //Make a connection that authenticates against the K2 SQL User Manager
+        //    SourceCode.Hosting.Client.BaseAPI.SCConnectionStringBuilder builder = new SourceCode.Hosting.Client.BaseAPI.SCConnectionStringBuilder();
+        //    builder.Authenticate = true;
+        //    builder.Host = "workflow-sit2.hlbank.my"; //server name of the K2 host server
+        //    builder.Port = 5555; //use port 5252 for SourceCode.Workflow.Client connections
+        //    builder.Integrated = false;
+        //    builder.IsPrimaryLogin = true;
+        //    builder.SecurityLabelName = "K2"; //the name of the security label to use for authenticating the credentials below
+        //    builder.UserID = "dsp_dms_apppool"; //user name to be authenticated
+        //    builder.Password = "user123!"; //password for the user to be authenticated
+        //    //open the connection
+
+        //    using (SourceCode.Workflow.Client.Connection K2Conn = new SourceCode.Workflow.Client.Connection())
+        //    {
+        //        //open a simple connection for simplicity
+        //        K2Conn.Open("[ServerName]", builder.ToString());
+        //        //set Out of Office ON for the current user
+        //        K2Conn.SetUserStatus(SourceCode.Workflow.Client.UserStatuses.OOF);
+        //        //set Out of Office OFF for the current user
+        //        K2Conn.SetUserStatus(SourceCode.Workflow.Client.UserStatuses.Available);
+
+        //        //set Out of Office ON for a managed user
+        //        K2Conn.SetUserStatus(@"[Label]:[Domain\Username]", SourceCode.Workflow.Client.UserStatuses.OOF); //e.g. K2:DOMAIN\Username 
+        //        //set Out of Office OFF for a managed user
+        //        K2Conn.SetUserStatus(@"[Label]:[Domain\Username]", SourceCode.Workflow.Client.UserStatuses.Available); //e.g. K2:DOMAIN\Username 
+        //    }
+
+        //    return strResult = "1";
+        //}
+
+        private string ConvertResponseToXmlText(EnumResponseType enumType, string strKey,  object response)
+        {
+            System.Text.StringBuilder strOutput = new System.Text.StringBuilder();
+            strOutput.AppendLine(strKey);
+            strOutput.AppendLine("<response>");
+            
+            if(enumType == EnumResponseType.ExportFile)
+            {
+                foreach (var prop in ((ExportFileResponseData)response).GetType().GetProperties())
+                {
+                    strOutput.AppendLine("    <" + prop.Name + ">" + prop.GetValue(response, null) + "</" + prop.Name + ">");
+                }
+            }
+            else if(enumType == EnumResponseType.SearchFile)
+            {
+                foreach (var prop in ((SearchFileResponseData)response).GetType().GetProperties())
+                {
+                    strOutput.AppendLine("    <" + prop.Name + ">" + prop.GetValue(response, null) + "</" + prop.Name + ">");
+                }
+            }
+            else if (enumType == EnumResponseType.DownloadFile)
+            {
+                foreach (var prop in ((DownloadFileResponseData)response).GetType().GetProperties())
+                {
+                    strOutput.AppendLine("    <" + prop.Name + ">" + prop.GetValue(response, null) + "</" + prop.Name + ">");
+                }
+            }
+            else if (enumType == EnumResponseType.DeleteFile)
+            {
+                foreach (var prop in ((DeleteFileResponseData)response).GetType().GetProperties())
+                {
+                    strOutput.AppendLine("    <" + prop.Name + ">" + prop.GetValue(response, null) + "</" + prop.Name + ">");
+                }
+            }
+            else if (enumType == EnumResponseType.CifDetailsInquiryByIDNo || enumType == EnumResponseType.CifDetailsInquiryByCIFNum)
+            {
+                foreach (var prop in ((SearchCifResponseData)response).GetType().GetProperties())
+                {
+                    strOutput.AppendLine("    <" + prop.Name + ">" + prop.GetValue(response, null) + "</" + prop.Name + ">");
+                }
+            }
+            else if (enumType == EnumResponseType.TradeTxnInquiry)
+            {
+                foreach (var prop in ((SearchTradeTxnResponseData)response).GetType().GetProperties())
+                {
+                    strOutput.AppendLine("    <" + prop.Name + ">" + prop.GetValue(response, null) + "</" + prop.Name + ">");
+                }
+            }
+            else if (enumType == EnumResponseType.LdapAuthentication)
+            {
+                foreach (var prop in ((LdapAuthenticationResponseData)response).GetType().GetProperties())
+                {
+                    strOutput.AppendLine("    <" + prop.Name + ">" + prop.GetValue(response, null) + "</" + prop.Name + ">");
+                }
+            }
+            else if (enumType == EnumResponseType.LdapSearchUser)
+            {
+                foreach (var prop in ((LdapSearchUserResponseData)response).GetType().GetProperties())
+                {
+                    strOutput.AppendLine("    <" + prop.Name + ">" + prop.GetValue(response, null) + "</" + prop.Name + ">");
+                }
+            }
+            
+            strOutput.AppendLine("</response>");
+            return strOutput.ToString();
+        }
+
+        private string FormatSqlValue(string strValue)
+        {
+            return strValue.Replace("'", "''");
+        }
+
+        private string Serialize(object input)
+        {
+            if (input == null)
+                return null;
+
+            System.Xml.Serialization.XmlSerializer ser = new System.Xml.Serialization.XmlSerializer(input.GetType());
+
+            using (System.IO.MemoryStream ms = new System.IO.MemoryStream())
+            using (System.IO.StreamReader sr = new System.IO.StreamReader(ms))
+            {
+                ser.Serialize(ms, input);
+                ms.Seek(0, 0);
+                return sr.ReadToEnd();
+            }
+        }
+
+        private string DecodeXmlSpecialCode(string strValue)
+        {
+            return System.Web.HttpUtility.HtmlDecode(strValue);
+        }
+
+        public struct structureA
+        {
+            public string BranchCode;
+            public string SalesmanCode;
+            public string ARNNumber;
+            public string Name;
+            public string IDNumber;
+            public string DocumentType;
+            public string Category;
+            public string BoxNumber;
+            public string BatchNo;
+            public string BatchDescription;
+            public string FileName;
+            public long VerID;
+            public long DocID;
+            public long ProfileID;
+            public string FileURL;
+        }
+
+        [WebMethod]
+        public List<structureA> DP_SearchFileFromEDMS(string ProfileName, string strColumn, string strKeyword)
+        {
+            SearchFileResponseData response = new SearchFileResponseData();
+            List<structureA> list = new List<structureA>();
+
+            System.ServiceModel.BasicHttpBinding binding = null;
+            EDMS_WSSDK.WSSDKSoapClient client = null;
+            //eDMSTTMS.DocufloSDKSoapClient client = null;
+
+            DataTable dt = new DataTable();
+            dt.Columns.Add("Branch Code");
+            dt.Columns.Add("Salesman Code");
+            dt.Columns.Add("ARN Number");
+            dt.Columns.Add("Name");
+            dt.Columns.Add("ID Number");
+            dt.Columns.Add("Document Type");
+            dt.Columns.Add("Category");
+            dt.Columns.Add("Box Number");
+            //dt.Columns.Add("Batch No");
+            //dt.Columns.Add("Batch Description");                        
+
+            //List<SearchFileResults> fl = new List<SearchFileResults>();
+            //SearchFileResults sfr = null;
+
+            try
+            {
+                //Specify the binding to be used for the client.
+                binding = new System.ServiceModel.BasicHttpBinding();
+                client = new EDMS_WSSDK.WSSDKSoapClient("WSSDKSoap", clsGlobal.EDMS_HOST_URL);
+
+                //client = new eDMSTTMS.DocufloSDKSoapClient("DocufloSDKSoap", clsGlobal.EDMS_HOST_URL);
+
+                string strChannelID = clsGlobal.EDMS_HOST_ID;
+                string strErrorCode = "";
+                string strErrorMsg = "";
+                bool blnHasFailed = false;
+
+                //if (SearchFile.Count > 0)
+                // {
+                //string[] strColumns = new String[SearchFile.Count];
+                //string[] strKeywords = new String[SearchFile.Count];
+
+                string[] strColumns = new String[1];
+                string[] strKeywords = new String[1];
+
+                strColumns[0] = strColumn;
+                strKeywords[0] = strKeyword.Trim();
+
+                //strColumns.Add(strColumn);
+                //strKeywords.Add(strKeyword);
+
+
+                /*
+                for (int i = 0; i < SearchFile.Count; i++)
+                    {
+                        strColumns[i] = SearchFile[i].ColumnName;
+                        strKeywords[i] = SearchFile[i].ColumnKeyword;
+                    }
+                */
+                EDMS_WSSDK.DataProfileResult1[] dpResult = client.ProfileSearch(ProfileName, strColumns, strKeywords, strChannelID, ref strErrorCode, ref strErrorMsg);
+                //EDMS_WSSDK.DataProfileResult[] dpResult = client.Search("arn2", ref strErrorCode, ref strErrorMsg);
+                //eDMSTTMS.DataProfileResult[] dpResult = client.ProfileSearch(ProfileName, strColumns, strKeywords, ref strErrorMsg);
+
+                //eDMSTTMS.DataProfileResult[] dpResult = client.Search("strValue3");
+
+                //clsLog.WriteSystemLog(clsLog.MessageType.Info, "Response", "Result=" + dpResult.Length.ToString());
+                if (strErrorCode == "0")
+                //if (strErrorCode == "")
+                {
+                    for (int i = 0; i < dpResult.Length; i++)
+                    {
+
+                        //sfr = new SearchFileResults();
+
+                        //sfr.VerID = dpResult[i].VerID.ToString();
+                        //sfr.ProfileID = dpResult[i].ProfileID.ToString();
+                        //sfr.ImageName = dpResult[i].ImageName.ToString();
+                        //sfr.FileSize = dpResult[i].FileSize.ToString();
+                        //sfr.DocID = dpResult[i].DocID.ToString();
+                        // sfr.Datecreated = dpResult[i].Datecreated.ToString();
+
+                        EDMS_WSSDK.DataColumn1[] arr = dpResult[i].Arr_DataValue;
+                        //eDMSTTMS.DataColumn[] arr = dpResult[i].Arr_DataValue;
+
+                        structureA instance = new structureA();
+
+                        long strDocID = dpResult[i].DocID;
+                        long strProfileID = dpResult[i].ProfileID;
+                        long stVerID = dpResult[i].VerID;
+                        string strFileName = dpResult[i].ImageName;
+
+                        instance.FileName = strFileName;
+                        instance.VerID = stVerID;
+                        instance.ProfileID = strProfileID;
+                        instance.DocID = strDocID;
+                        string strFileURL = "";
+
+                        DP_DownloadFileFromEDMS(stVerID.ToString(), strProfileID.ToString(), strDocID.ToString(), ref strFileURL);
+
+                        instance.FileURL = strFileURL;
+                        //instance.FileURL = "http://kapps2/edms/view_file.aspx?verid=" + stVerID + "&proid=" + strProfileID;
+
+
+                        if (arr != null)
+                        {
+                            for (int x = 0; x < arr.Length; x++)
+                            {
+                                if (arr[x].Col_Desc == "Branch Code")
+                                {
+                                    //dt[x]["FIELD1"] = arr[x].ProfileValue;
+
+                                    //dt.Columns["FIELD1"][x] = arr[x].ProfileValue;
+                                    //dt.Columns[]
+                                    //dt.Rows[x]["Branch Code"] = arr[x].ProfileValue;
+
+
+                                    instance.BranchCode = arr[x].ProfileValue;
+
+                                    //sfr.Field1 = arr[x].ProfileValue;
+                                }
+                                else if (arr[x].Col_Desc == "Salesman Code")
+                                {
+                                    // dt.Rows[x]["Salesman Code"] = arr[x].ProfileValue;
+                                    instance.SalesmanCode = arr[x].ProfileValue;
+                                    //sfr.Field2 = arr[x].ProfileValue;
+                                }
+                                else if (arr[x].Col_Desc == "ARN Number")
+                                {
+                                    //dt.Rows[x]["FIELD3"] = arr[x].ProfileValue;
+                                    instance.ARNNumber = arr[x].ProfileValue;
+                                    //sfr.Field3 = arr[x].ProfileValue;
+                                }
+                                else if (arr[x].Col_Desc == "Name")
+                                {
+                                    instance.Name = arr[x].ProfileValue;
+                                    //dt.Rows[x]["FIELD5"] = arr[x].ProfileValue;
+                                    //sfr.Field5 = arr[x].ProfileValue;
+                                }
+                                else if (arr[x].Col_Desc == "ID Number")
+                                {
+                                    instance.IDNumber = arr[x].ProfileValue;
+                                    //dt.Rows[x]["FIELD6"] = arr[x].ProfileValue;
+                                    //sfr.Field6 = arr[x].ProfileValue;
+                                }
+                                else if (arr[x].Col_Desc == "Document Type")
+                                {
+                                    instance.DocumentType = arr[x].ProfileValue;
+                                    //dt.Rows[x]["FIELD7"] = arr[x].ProfileValue;
+                                    //sfr.Field7 = arr[x].ProfileValue;
+                                }
+                                else if (arr[x].Col_Desc == "Category")
+                                {
+                                    instance.Category = arr[x].ProfileValue;
+                                    //dt.Rows[x]["FIELD8"] = arr[x].ProfileValue;
+                                    //sfr.Field8 = arr[x].ProfileValue;
+                                }
+                                else if (arr[x].Col_Desc == "Box Number")
+                                {
+                                    instance.BoxNumber = arr[x].ProfileValue;
+                                    //dt.Rows[x]["FIELD9"] = arr[x].ProfileValue;
+                                    //sfr.Field9 = arr[x].ProfileValue;
+                                }
+                                else if (arr[x].Col_Desc == "Batch No")
+                                {
+                                    instance.BatchNo = arr[x].ProfileValue;
+                                    //dt.Rows[x]["FIELD10"] = arr[x].ProfileValue;
+                                    //sfr.Field10 = arr[x].ProfileValue;
+                                }
+                                else if (arr[x].Col_Desc == "Batch Description")
+                                {
+                                    instance.BatchDescription = arr[x].ProfileValue;
+                                    //dt.Rows[x]["FIELD11"] = arr[x].ProfileValue;
+                                    //sfr.BatchNo = arr[x].ProfileValue;
+                                }
+                                /*
+                                else if (arr[x].Col_Name.ToUpper() == "BATCH DESCRIPTION")
+                                {
+                                instance.field12 = arr[x].ProfileValue;
+                                dt.Rows[x]["FIELD12"] = arr[x].ProfileValue;
+                                //sfr.BatchDesc = arr[x].ProfileValue;
+                                }
+                                */
+                            }
+                        }
+
+                        list.Add(instance);
+                    }
+
+                    if (!blnHasFailed)
+                    {
+                        response.Status = "1";
+                        response.ErrorCode = "";
+                        response.ErrorMessage = "";
+                        //response.FileList = fl;
+                    }
+                }
+                else
+                {
+                    blnHasFailed = true;
+                    response.Status = "-1";
+                    response.ErrorCode = strErrorCode;
+                    response.ErrorMessage = strErrorMsg;
+                }
+
+
+            }
+            catch (Exception ex)
+            {
+                response.Status = "-1";
+                response.ErrorCode = "1";
+                response.ErrorMessage = "Unexpected Error: " + ex.Message;
+                clsLog.WriteSystemLog(clsLog.MessageType.Error, "SearchFileFromEDMS()", ex.Message + Environment.NewLine + ex.StackTrace);
+            }
+            finally
+            {
+                // fl = null;
+                //  sfr = null;
+
+                binding = null;
+                client = null;
+            }
+
+            //clsLog.WriteSystemLog(clsLog.MessageType.Info, "Response", ConvertResponseToXmlText(EnumResponseType.SearchFile, "RefNo=" + RefNo, response));
+            return list;
+        }
+
+        [WebMethod]
+        public void DP_DownloadFileFromEDMS(string VerID, string ProfileID, string FileType, ref string strFileURL)
+        {
+            //DownloadFileResponseData response = new DownloadFileResponseData();
+
+            System.ServiceModel.BasicHttpBinding binding = null;
+            EDMS_WSSDK.WSSDKSoapClient client = null;
+            //eDMSTTMS.DocufloSDKSoapClient client = null;
+
+            try
+            {
+                //Specify the binding to be used for the client.
+                binding = new System.ServiceModel.BasicHttpBinding();
+                client = new EDMS_WSSDK.WSSDKSoapClient("WSSDKSoap", clsGlobal.EDMS_HOST_URL);
+                //client = new eDMSTTMS.DocufloSDKSoapClient("DocufloSDKSoap", clsGlobal.EDMS_HOST_URL);
+
+                string strChannelID = clsGlobal.EDMS_HOST_ID;
+                string strErrorCode = "";
+                string strErrorMsg = "";
+                string strFileUrl = "";
+                string strResult = "";
+                bool blnHasFailed = false;
+
+                //string FileName;
+                byte[] FileContent;
+                FileContent = null;
+                string FileName = "";
+
+                //List<EDMS_WSSDK.DataColumnAccessList> ListA = new List<EDMS_WSSDK.DataColumnAccessList>();
+
+                EDMS_WSSDK.DataColumnAccessList[] ListA = new EDMS_WSSDK.DataColumnAccessList[1];
+
+                //strResult = client.Login("k2admin", "ttmsk2123", ref ListA, ref strErrorCode, ref strErrorMsg);
+                strResult = client.ViewFile_with_Requestor(Convert.ToInt64(VerID), Convert.ToInt64(ProfileID), 1, ref strFileURL, strChannelID, ref strErrorCode, ref strErrorMsg);
+                //strResult = client.Download(Convert.ToInt64(VerID), Convert.ToInt64(ProfileID), Convert.ToInt16(FileType), ref  FileName, ref FileContent);
+
+
+
+                clsLog.WriteSystemLog(clsLog.MessageType.Info, "Response", "Result=" + strResult);
+                if (strResult == "1")
+                {
+                    //string strFileContent = Convert.ToBase64String(FileContent);
+                    //response.FileUrl = strFileUrl;
+                    //response.FileUrl = FileName;
+                    //response.FileUrl = FileContent;
+
+
+                    /*
+                    XmlDocument doc = new XmlDocument();
+
+                    //(1) the xml declaration is recommended, but not mandatory
+                    //XmlDeclaration xmlDeclaration = doc.CreateXmlDeclaration("1.0", "UTF-8", null);
+                    XmlElement root = doc.DocumentElement;
+                    //doc.InsertBefore(xmlDeclaration, root);
+
+                    XmlElement element2 = doc.CreateElement(string.Empty, "File", string.Empty);
+                    root.AppendChild(element2);
+
+                    XmlElement element3 = doc.CreateElement(string.Empty, "name", string.Empty);
+                    XmlText text1 = doc.CreateTextNode(FileName);
+                    element3.AppendChild(text1);
+                    element2.AppendChild(element3);
+
+                    XmlElement element4 = doc.CreateElement(string.Empty, "content", string.Empty);
+                    XmlText text2 = doc.CreateTextNode(strFileContent);
+                    element4.AppendChild(text2);
+                    element2.AppendChild(element4);
+
+                    strXML = Convert.ToString(doc);
+                    */
+                }
+                else
+                {
+                    /*
+                    blnHasFailed = true;
+                    response.Status = strResult;
+                    response.ErrorCode = strErrorCode;
+                    response.ErrorMessage = strErrorMsg;
+                    */
+                }
+
+                if (!blnHasFailed)
+                {
+                    /*
+                    response.Status = "1";
+                    response.ErrorCode = "";
+                    response.ErrorMessage = "";
+                    */
+                }
+            }
+            catch (Exception ex)
+            {
+                /*
+                response.Status = "-1";
+                response.ErrorCode = "1";
+                response.ErrorMessage = "Unexpected Error: " + ex.Message;
+                clsLog.WriteSystemLog(clsLog.MessageType.Error, "DownloadFileFromEDMS()", ex.Message + Environment.NewLine + ex.StackTrace);
+                */
+            }
+            finally
+            {
+                binding = null;
+                client = null;
+            }
+
+            //clsLog.WriteSystemLog(clsLog.MessageType.Info, "Response", ConvertResponseToXmlText(EnumResponseType.DownloadFile, "RefNo=" + RefNo, response));
+            //return response;
+        }
+
+        [WebMethod]
+        public ExportFileResponseData DP_ExportK2FileToEDMS(string strProfile, string strFolderName, string file, string fileName, string strARN, string strDocType, string strCategory, string strIDNumber, string Name )
+        {
+            ExportFileResponseData response = new ExportFileResponseData();
+
+            System.ServiceModel.BasicHttpBinding binding = null;
+            EDMS_WSSDK.WSSDKSoapClient client = null;
+            //eDMSTTMS.DocufloSDKSoapClient client = null;
+
+            try
+            {
+
+                //Specify the binding to be used for the client.
+                binding = new System.ServiceModel.BasicHttpBinding();
+                client = new EDMS_WSSDK.WSSDKSoapClient("WSSDKSoap", clsGlobal.EDMS_HOST_URL);
+                //client = new eDMSTTMS.DocufloSDKSoapClient("DocufloSDKSoap", clsGlobal.EDMS_HOST_URL);
+
+                string strChannelID = clsGlobal.EDMS_HOST_ID;
+                System.Xml.XmlDocument xmlDoc = null;
+                System.Xml.XmlNodeList xmlNodeList = null;
+                System.Xml.XmlNodeList xmlNodeListFileName = null;
+                string strErrorCode = "";
+                string strErrorMsg = "";
+                string strResult = "";
+
+                //bool blnHasFailed = false;
+
+                //int intDocID;
+                byte[] byteFileContent = null;
+                //string strFileName = "";
+                //string strProfile = "";
+                //string strFolderName = "";
+                string strBranchCode = "n/a";
+                string strSalesmanCode = "n/a";
+                //string strARN = strARN;
+                string strName = Name;
+                //string strID = "";
+                //string strDocType = "";
+                //string strCategory = "";
+                string strBoxNumber = "n/a";
+
+
+                // file method
+                /*
+                xmlDoc = new System.Xml.XmlDocument();
+
+                xmlDoc.LoadXml(file);
+
+                xmlNodeList = xmlDoc.GetElementsByTagName("content");
+                xmlNodeListFileName = xmlDoc.GetElementsByTagName("name");
+
+                string strFileName = xmlNodeListFileName[0].InnerText;
+
+                byteFileContent = Convert.FromBase64String(xmlNodeList[0].InnerText);
+                */
+                string strFileName;
+                // direct file image method
+                if (String.IsNullOrEmpty( fileName) )                   
+                {
+                    strFileName = "error.pdf";
+                }
+                else
+                {
+                    strFileName = fileName;
+                }
+                
+                byteFileContent = Convert.FromBase64String(file);
+
+                /*
+                var xdoc = XDocument.Parse(file);
+                var element = from e in xdoc.Descendants("content") select e;
+
+                byteFileContent = Convert.FromBase64String(element.First().Value);
+                */
+                //System.Diagnostics.Debug.Write(xmlNodeList[0].InnerText);
+                //intDocID = Convert.ToInt32(dt.Rows[i]["ID"].ToString());
+                //intDocID = 1001;
+                
+                
+                //byteFileContent = BitConverter.GetBytes(1) ;
+
+                //string base64Encoded = "YmFzZTY0IGVuY29kZWQgc3RyaW5n";
+                //string base64Decoded;
+                //byteFileContent = System.Convert.FromBase64String(base64Encoded);
+
+                /*
+                HLBBWS.eDMSTTMS.ArrayOfString str2x = new eDMSTTMS.ArrayOfString();
+                str2.Add(strBranchCode.Trim());
+                str2.Add(strSalesmanCode.Trim());
+                str2.Add(strARN.Trim());
+                str2.Add(strName.Trim());
+                str2.Add(strIDNumber.Trim());
+                str2.Add(strDocType.Trim());
+                str2.Add(strCategory.Trim());
+                str2.Add(strBoxNumber.Trim());
+                */
+
+                string[] str2 = new string[8];
+
+                //str2[0] = strBoxNumber.Trim();
+                if (String.IsNullOrEmpty(strBoxNumber))
+                {
+                    str2[0] = "n/a";
+                }
+                else
+                {
+                    str2[0] = strBoxNumber.Trim();
+                }
+                //str2[1] = strBranchCode.Trim();
+                if (String.IsNullOrEmpty(strBranchCode))
+                {
+                    str2[1] = "n/a";
+                }
+                else
+                {
+                    str2[1] = strBranchCode.Trim();
+                }
+                //str2[2] = strSalesmanCode.Trim();
+                if (String.IsNullOrEmpty(strSalesmanCode))
+                {
+                    str2[2] = "n/a";
+                }
+                else
+                {
+                    str2[2] = strSalesmanCode.Trim();
+                }
+               // str2[3] = strARN.Trim();
+                if (String.IsNullOrEmpty(strARN))
+                {
+                    str2[3] = "n/a";
+                }
+                else
+                {
+                    str2[3] = strARN.Trim();
+                }
+               // str2[4] = strName.Trim();
+                if (String.IsNullOrEmpty(strName))
+                {
+                    str2[4] = "n/a";
+                }
+                else
+                {
+                    str2[4] = strName.Trim();
+                }
+                //str2[5] = strIDNumber.Trim();
+                if (String.IsNullOrEmpty(strIDNumber))
+                {
+                    str2[5] = "n/a";
+                }
+                else
+                {
+                    str2[5] = strIDNumber.Trim();
+                }
+               //str2[6] = strDocType.Trim();
+                if (String.IsNullOrEmpty(strDocType))
+                {
+                    str2[6] = "n/a";
+                }
+                else
+                {
+                    str2[6] = strDocType.Trim();
+                }
+                //str2[7] = strCategory.Trim();
+                if (String.IsNullOrEmpty(strCategory))
+                {
+                    str2[7] = "n/a";
+                }
+                else
+                {
+                    str2[7] = strCategory.Trim();
+                }
+
+
+                //strResult = client.Export(byteFileContent, strFileName, strProfile, strFolderName, new string[] { strValue1, strValue2, strValue3, strValue4, strValue5, strValue6, strValue7, strValue8, strValue9, strValue10 }, strChannelID, ref strErrorCode, ref strErrorMsg);   //client.Download(intVerID, intProfileID, intDocType, ref strFileName, ref byteDoc);
+
+
+                //< FileContent > base64Binary </ FileContent >
+                //< strFileName > string </ strFileName >
+                //< strProfile > string </ strProfile >
+                //< strFolderName > string </ strFolderName >
+                //< arrProfileValue >
+                //< string > string </ string >
+                //< string > string </ string >
+                //</ arrProfileValue >
+                //< userID > string </ userID >
+                //< error_code > string </ error_code >
+                //< error_msg > string </ error_msg >
+
+                strResult = client.Export(byteFileContent, strFileName, strProfile, strFolderName, str2, strChannelID, ref strErrorCode, ref strErrorMsg);   //client.Download(intVerID, intProfileID, intDocType, ref strFileName, ref byteDoc);
+                //strResult = client.Export(byteFileContent, strFileName, strProfile, strFolderName, str2, strChannelID);   //client.Download(intVerID, intProfileID, intDocType, ref strFileName, ref byteDoc);
+
+                clsLog.WriteSystemLog(clsLog.MessageType.Info, "Response", "Result=" + strResult);
+
+                if (strResult == "1")
+                {
+                    //conn.Open();
+                    //SqlCommand sqlCmd = new SqlCommand("UPDATE TBL_TASK_UPLOAD_DOC SET [IsUploaded]=1 WHERE [ID]=" + intDocID.ToString(), conn);
+                    //sqlCmd.ExecuteNonQuery();
+                    //conn.Close();
+                }
+                else
+                {
+                    //blnHasFailed = true;
+                    //response.Status = strResult;
+                    response.ErrorCode = strErrorCode;
+                    response.ErrorMessage = "File (" + strFileName + ") " + strErrorMsg;
+                }
+            }
+            catch (Exception ex)
+            {
+                response.Status = "-1";
+                response.ErrorCode = "1";
+                response.ErrorMessage = "Unexpected Error: " + ex.Message;
+                clsLog.WriteSystemLog(clsLog.MessageType.Error, "ExportK2FileToEDMS()", ex.Message + Environment.NewLine + ex.StackTrace);
+            }
+            finally
+            {
+
+                binding = null;
+                client = null;
+            }
+
+            //clsLog.WriteSystemLog(clsLog.MessageType.Info, "Response", ConvertResponseToXmlText(EnumResponseType.ExportFile, "RefNo=" + RefNo, response));
+            return response;
+        }
+
+        public struct structureLOADS
+        {
+            public string collaterals_buildUpArea;
+            public string collaterals_developerCode;
+            public string collaterals_developerName;
+            public string collaterals_financingType;
+            public string collaterals_landArea;
+            public string collaterals_projectCode;
+            public string collaterals_projectName;
+            public string collaterals_propertyAddress;
+            public string collaterals_propertyType;
+            public string collaterals_requiredValReportInd;
+
+            public string collaterals_titleDetails;
+            public string collaterals_valuerAccountNbr;
+            public string collaterals_valuerAccountType;
+            public string collaterals_valuerAddr1;
+            public string collaterals_valuerAddr2;
+
+            public string collaterals_valuerAddr3;
+            public string collaterals_valuerCity;
+            public string collaterals_valuerCode;
+            public string collaterals_valuerCountry;
+            public string collaterals_valuerEmail;
+            public string collaterals_valuerName;
+            public string collaterals_valuerPostcode;
+            public string collaterals_valuerState;
+
+            public string collaterals_verbalIndicativeValue;
+            public string facilities_disbursementManner;
+            public string facilities_facilityAmount1;
+            public string facilities_facilityAmount2;
+            public string facilities_facilityAmount3;
+
+            public string facilities_facilityAmount4;
+            public string facilities_gracePeriod;
+            public string facilities_productName1;
+            public string facilities_productName2;
+            public string facilities_productName3;
+            public string facilities_productName4;
+
+            public string facilities_purposeCode;
+            public string facilities_totFeesAmount;
+            public string facilities_totFinancingAmount;
+            public string facilities_totFinancingAmountIncFlvm;
+            public string facilities_totInsAmount;
+            public string facilities_totValuationFees;
+            public string loanApplicationInfo_appStatus;
+            public string loanApplicationInfo_branchAddr1;
+            
+            public string loanApplicationInfo_branchAddr2;
+            public string loanApplicationInfo_branchAddr3;
+            public string loanApplicationInfo_branchAddrCity;
+            public string loanApplicationInfo_branchAddrCountry;
+            public string loanApplicationInfo_branchAddrPostcode;
+            public string loanApplicationInfo_branchAddrState;
+
+            public string loanApplicationInfo_branchManagerEmail;
+            public string loanApplicationInfo_branchManagerName;
+            public string loanApplicationInfo_closingBranch;
+            public string loanApplicationInfo_lendingType;
+            public string loanApplicationInfo_loAcceptanceDt;
+            public string loanApplicationInfo_mortgageCenterCode;
+            public string loanApplicationInfo_mortgageCenterEmail;
+
+            public string loanApplicationInfo_salesEmail;
+            public string loanApplicationInfo_salesName;
+            public string loanApplicationInfo_solicitorAccountType;
+            public string loanApplicationInfo_solicitorAddr1;
+            public string loanApplicationInfo_solicitorAddr2;
+            public string loanApplicationInfo_solicitorAddr3;
+
+            public string loanApplicationInfo_solicitorCity;
+            public string loanApplicationInfo_solicitorCode;
+            public string loanApplicationInfo_solicitorCountry;
+            public string loanApplicationInfo_solicitorEmail;
+            public string loanApplicationInfo_solicitorIntStatus;
+            public string loanApplicationInfo_solicitorNBR;
+            public string loanApplicationInfo_solicitorName;
+
+            public string loanApplicationInfo_solicitorPostcode;
+            public string loanApplicationInfo_solicitorState;
+            public string loanApplicationInfo_topupLoanInd;
+            public string loanApptPersonnelInfo_applicantAddr1;
+            public string loanApptPersonnelInfo_applicantAddr2;
+            public string loanApptPersonnelInfo_applicantAddr3;
+            public string loanApptPersonnelInfo_applicantAddrCity;
+
+            public string loanApptPersonnelInfo_applicantAddrCountry;
+            public string loanApptPersonnelInfo_applicantAddrPostcode;
+            public string loanApptPersonnelInfo_applicantAddrState;
+            public string loanApptPersonnelInfo_applicantEmails;
+            public string loanApptPersonnelInfo_applicantIDs;
+            public string loanApptPersonnelInfo_applicantNamesCombine;
+            public string loanApptPersonnelInfo_chargorIDs;
+
+            public string loanApptPersonnelInfo_chargorNames;
+            public string loanApptPersonnelInfo_eStatementFlagInd;
+            public string loanApptPersonnelInfo_guarantorIDs;
+            public string loanApptPersonnelInfo_guarantorNames;
+            public string loanApptPersonnelInfo_priApplicantName;
+
+            public string respInfo_respCode;
+            public string respInfo_respDesc;
+           
+            /*
+            public string SalesmanCode;
+            public string ARNNumber;
+            public string Name;
+            public string IDNumber;
+            public string DocumentType;
+            public string Category;
+            public string BoxNumber;
+            public string BatchNo;
+            public string BatchDescription;
+            public string FileName;
+            public long VerID;
+            public long DocID;
+            public long ProfileID;
+            public string FileURL;
+             * */
+        }
+
+        [WebMethod]
+        public List<structureLOADS> DP_GetDataFromLOADS(string arn)
+        {
+            
+            List<structureLOADS> list = new List<structureLOADS>();
+            
+			try
+            {
+				SearchFileResponseData response = new SearchFileResponseData();
+
+	            //System.ServiceModel.BasicHttpBinding binding = null;
+	            //LOADS_API.WsEIWSLosaLoanApplicantInfo proxy = new LOADS_API.WsEIWSLosaLoanApplicantInfo();
+	            LOADS_API.WsEIWSLosaAppBocImpService client= new LOADS_API.WsEIWSLosaAppBocImpService();
+	            LOADS_API.AppHeader xmlAppHeader  = new LOADS_API.AppHeader();
+	            
+	            xmlAppHeader.agencyId = "?";
+	            xmlAppHeader.bizRefNo = arn;
+	            xmlAppHeader.businessArea = "?";
+	            xmlAppHeader.date = "?";
+	            xmlAppHeader.processId = "?";
+
+                LOADS_API.WsEIWSLosaAppLoanInfo output = client.LoanApplicationInfo(xmlAppHeader);
+
+                structureLOADS loads = new structureLOADS();
+
+                // log the result in db
+                DataSet ds = null;
+                DataTable dt = null;
+                SqlConnection conn = null;
+                SqlDataAdapter sqlDA = null;
+
+                string strDataSource = clsGlobal.MG_SQL_DATA_SOURCE;
+                string strDBName = clsGlobal.MG_SQL_DB_NAME;
+                string strID = clsGlobal.MG_SQL_ID;
+                string strPassword = clsGlobal.MG_SQL_PASSWORD;
+                bool blnIsWinAuth = clsGlobal.MG_SQL_IS_WIN_AUTH;
+
+                string connstr = @"Data Source=" + strDataSource + ";Initial Catalog=" + strDBName + ";Persist Security Info=True;User ID=" + strID + ";Password=" + strPassword;
+                if (blnIsWinAuth)
+                {
+                    connstr = @"Data Source=" + strDataSource + ";Initial Catalog=" + strDBName + ";Integrated Security=True;";
+                }
+                conn = new SqlConnection(connstr);
+                conn.Open();
+
+                sqlDA = new SqlDataAdapter();
+                sqlDA.SelectCommand = new SqlCommand("insert into LOADS_API_LOG values ('" + arn + "', '" + output.respInfo.respCode.ToString() + "', '" + output.respInfo.respDesc.ToString() + "', getdate())", conn);
+
+                ds = new DataSet("ds");
+                sqlDA.Fill(ds);
+                //dt = ds.Tables[0];
+
+                conn.Close();
+
+                if (output.respInfo.respCode == "00")
+                {
+                    //collaterals_developerCode
+                    if (string.IsNullOrEmpty(output.collaterals.developerCode))
+                    {
+                        loads.collaterals_developerCode = "";
+                    }
+                    else
+                    {
+                        loads.collaterals_developerCode = output.collaterals.developerCode.ToString();
+                    }
+
+                    //collaterals_buildUpArea
+                    if (string.IsNullOrEmpty(output.collaterals.buildUpArea.ToString()))
+                    {
+                        loads.collaterals_buildUpArea = "";
+                    }
+                    else
+                    {
+                        loads.collaterals_buildUpArea = output.collaterals.buildUpArea.ToString();
+                    }
+
+                    //collaterals_developerName
+                    if (string.IsNullOrEmpty(output.collaterals.developerName))
+                    {
+                        loads.collaterals_developerName = "";
+                    }
+                    else
+                    {
+                        loads.collaterals_developerName = output.collaterals.developerName.ToString();
+                    }
+
+                    //collaterals_financingType
+                    if (string.IsNullOrEmpty(output.collaterals.financingType))
+                    {
+                        loads.collaterals_financingType = "";
+                    }
+                    else
+                    {
+                        loads.collaterals_financingType = output.collaterals.financingType.ToString();
+                    }
+
+                    //collaterals_landArea
+                    if (string.IsNullOrEmpty(output.collaterals.landArea.ToString()))
+                    {
+                        loads.collaterals_landArea = "";
+                    }
+                    else
+                    {
+                        loads.collaterals_landArea = output.collaterals.landArea.ToString();
+                    }
+
+
+                    //collaterals_projectCode
+                    if (string.IsNullOrEmpty(output.collaterals.projectCode))
+                    {
+                        loads.collaterals_projectCode = "";
+                    }
+                    else
+                    {
+                        loads.collaterals_projectCode = output.collaterals.projectCode.ToString();
+                    }
+
+                    //collaterals_projectName
+                    if (string.IsNullOrEmpty(output.collaterals.projectName))
+                    {
+                        loads.collaterals_projectName = "";
+                    }
+                    else
+                    {
+                        loads.collaterals_projectName = output.collaterals.projectName.ToString();
+                    }
+
+                    //collaterals_propertyAddress
+                    if (string.IsNullOrEmpty(output.collaterals.propertyAddress))
+                    {
+                        loads.collaterals_propertyAddress = "";
+                    }
+                    else
+                    {
+                        loads.collaterals_propertyAddress = output.collaterals.propertyAddress.ToString();
+                    }
+
+                    //collaterals_propertyType
+                    if (string.IsNullOrEmpty(output.collaterals.propertyType))
+                    {
+                        loads.collaterals_propertyType = "";
+                    }
+                    else
+                    {
+                        loads.collaterals_propertyType = output.collaterals.propertyType.ToString();
+                    }
+
+                    //collaterals_requiredValReportInd
+                    if (string.IsNullOrEmpty(output.collaterals.requiredValReportInd))
+                    {
+                        loads.collaterals_requiredValReportInd = "0";
+                    }
+                    else
+                    {
+                        if (output.collaterals.requiredValReportInd.ToString().ToUpper().Trim() == "TRUE")
+                        {
+                            loads.collaterals_requiredValReportInd = "1";
+                        }
+                        else
+                        {
+                            loads.collaterals_requiredValReportInd = "0";
+                        }
+                        //loads.collaterals_propertyType = output.collaterals.propertyType.ToString();
+                        //loads.collaterals_requiredValReportInd = output.collaterals.requiredValReportInd.ToString();
+                        
+                    }
+
+                    //collaterals_titleDetails
+                    if (string.IsNullOrEmpty(output.collaterals.titleDetails))
+                    {
+                        loads.collaterals_titleDetails = "";
+                    }
+                    else
+                    {
+                        loads.collaterals_titleDetails = output.collaterals.titleDetails.ToString();
+                    }
+
+                    //collaterals_valuerAccountNbr
+                    if (string.IsNullOrEmpty(output.collaterals.valuerAccountNbr))
+                    {
+                        loads.collaterals_valuerAccountNbr = "";
+                    }
+                    else
+                    {
+                        loads.collaterals_valuerAccountNbr = output.collaterals.valuerAccountNbr.ToString();
+                    }
+
+                    //collaterals_valuerAccountType
+                    if (string.IsNullOrEmpty(output.collaterals.valuerAccountType))
+                    {
+                        loads.collaterals_valuerAccountType = "";
+                    }
+                    else
+                    {
+                        loads.collaterals_valuerAccountType = output.collaterals.valuerAccountType.ToString();
+                    }
+
+                    //collaterals_valuerAddr1
+                    if (string.IsNullOrEmpty(output.collaterals.valuerAddr1))
+                    {
+                        loads.collaterals_valuerAddr1 = "";
+                    }
+                    else
+                    {
+                        loads.collaterals_valuerAddr1 = output.collaterals.valuerAddr1.ToString();
+                    }
+
+                    //collaterals_valuerAddr2
+                    if (string.IsNullOrEmpty(output.collaterals.valuerAddr2))
+                    {
+                        loads.collaterals_valuerAddr2 = "";
+                    }
+                    else
+                    {
+                        loads.collaterals_valuerAddr2 = output.collaterals.valuerAddr2.ToString();
+                    }
+
+                    //collaterals_valuerAddr3
+                    if (string.IsNullOrEmpty(output.collaterals.valuerAddr3))
+                    {
+                        loads.collaterals_valuerAddr3 = "";
+                    }
+                    else
+                    {
+                        loads.collaterals_valuerAddr3 = output.collaterals.valuerAddr3.ToString();
+                    }
+
+                    //collaterals_valuerCity
+                    if (string.IsNullOrEmpty(output.collaterals.valuerCity))
+                    {
+                        loads.collaterals_valuerCity = "";
+                    }
+                    else
+                    {
+                        loads.collaterals_valuerCity = output.collaterals.valuerCity.ToString();
+                    }
+
+                    //collaterals_valuerCode
+                    if (string.IsNullOrEmpty(output.collaterals.valuerCode))
+                    {
+                        loads.collaterals_valuerCode = "";
+                    }
+                    else
+                    {
+                        loads.collaterals_valuerCode = output.collaterals.valuerCode.ToString();
+                    }
+
+                    //collaterals_valuerCountry
+                    if (string.IsNullOrEmpty(output.collaterals.valuerCountry))
+                    {
+                        loads.collaterals_valuerCountry = "";
+                    }
+                    else
+                    {
+                        loads.collaterals_valuerCountry = output.collaterals.valuerCountry.ToString();
+                    }
+
+                    //collaterals_valuerEmail
+                    if (string.IsNullOrEmpty(output.collaterals.valuerEmail))
+                    {
+                        loads.collaterals_valuerEmail = "";
+                    }
+                    else
+                    {
+                        loads.collaterals_valuerEmail = output.collaterals.valuerEmail.ToString();
+                    }
+
+                    //collaterals_valuerName
+                    if (string.IsNullOrEmpty(output.collaterals.valuerName))
+                    {
+                        loads.collaterals_valuerName = "";
+                    }
+                    else
+                    {
+                        loads.collaterals_valuerName = output.collaterals.valuerName.ToString();
+                    }
+
+                    //collaterals_valuerPostcode
+                    if (string.IsNullOrEmpty(output.collaterals.valuerPostcode))
+                    {
+                        loads.collaterals_valuerPostcode = "";
+                    }
+                    else
+                    {
+                        loads.collaterals_valuerPostcode = output.collaterals.valuerPostcode.ToString();
+                    }
+
+                    //collaterals_valuerState
+                    if (string.IsNullOrEmpty(output.collaterals.valuerState))
+                    {
+                        loads.collaterals_valuerState = "";
+                    }
+                    else
+                    {
+                        loads.collaterals_valuerState = output.collaterals.valuerState.ToString();
+                    }
+
+                    //collaterals_verbalIndicativeValue
+                    if (string.IsNullOrEmpty(output.collaterals.verbalIndicativeValue.ToString()))
+                    {
+                        loads.collaterals_verbalIndicativeValue = "";
+                    }
+                    else
+                    {
+                        loads.collaterals_verbalIndicativeValue = output.collaterals.verbalIndicativeValue.ToString();
+                    }
+
+                    loads.collaterals_requiredValReportInd = output.collaterals.requiredValReportInd ?? "";
+
+                    //facilities_disbursementManner
+                    if (string.IsNullOrEmpty(output.facilities.disbursementManner))
+                    {
+                        loads.facilities_disbursementManner = "";
+                    }
+                    else
+                    {
+                        loads.facilities_disbursementManner = output.facilities.disbursementManner.ToString();
+                    }
+
+                    //facilities_facilityAmount1
+                    if (string.IsNullOrEmpty(output.facilities.facilityAmount1.ToString()))
+                    {
+                        loads.facilities_facilityAmount1 = "";
+                    }
+                    else
+                    {
+                        loads.facilities_facilityAmount1 = output.facilities.facilityAmount1.ToString();
+                    }
+
+                    //facilities_facilityAmount2
+                    if (string.IsNullOrEmpty(output.facilities.facilityAmount2.ToString()))
+                    {
+                        loads.facilities_facilityAmount2 = "";
+                    }
+                    else
+                    {
+                        loads.facilities_facilityAmount2 = output.facilities.facilityAmount2.ToString();
+                    }
+
+                    //facilities_facilityAmount3
+                    if (string.IsNullOrEmpty(output.facilities.facilityAmount3.ToString()))
+                    {
+                        loads.facilities_facilityAmount3 = "";
+                    }
+                    else
+                    {
+                        loads.facilities_facilityAmount3 = output.facilities.facilityAmount3.ToString();
+                    }
+
+                    //facilities_facilityAmount4
+                    if (string.IsNullOrEmpty(output.facilities.facilityAmount4.ToString()))
+                    {
+                        loads.facilities_facilityAmount4 = "";
+                    }
+                    else
+                    {
+                        //loads.facilities_facilityAmount3 = output.facilities.facilityAmount3.ToString();
+                        loads.facilities_facilityAmount4 = output.facilities.facilityAmount4.ToString();
+                    }
+
+                    //facilities_facilityAmount4
+                    if (string.IsNullOrEmpty(output.facilities.gracePeriod.ToString()))
+                    {
+                        loads.facilities_gracePeriod = "";
+                    }
+                    else
+                    {
+                        loads.facilities_gracePeriod = output.facilities.gracePeriod.ToString();
+                    }
+
+                    //facilities_productName1
+                    if (string.IsNullOrEmpty(output.facilities.productName1))
+                    {
+                        loads.facilities_productName1 = "";
+                    }
+                    else
+                    {
+                        loads.facilities_productName1 = output.facilities.productName1.ToString();
+                    }
+
+                    //facilities_productName2
+                    if (string.IsNullOrEmpty(output.facilities.productName2))
+                    {
+                        loads.facilities_productName2 = "";
+                    }
+                    else
+                    {
+                        loads.facilities_productName2 = output.facilities.productName2.ToString();
+                    }
+
+                    //facilities_productName3
+                    if (string.IsNullOrEmpty(output.facilities.productName3))
+                    {
+                        loads.facilities_productName3 = "";
+                    }
+                    else
+                    {
+                        loads.facilities_productName3 = output.facilities.productName3.ToString();
+                    }
+
+                    //facilities_productName4
+                    if (string.IsNullOrEmpty(output.facilities.productName4))
+                    {
+                        loads.facilities_productName4 = "";
+                    }
+                    else
+                    {
+                        // loads.facilities_productName3 = output.facilities.productName3.ToString();
+                        loads.facilities_productName4 = output.facilities.productName4.ToString();
+                    }
+
+                    //facilities_productName4
+                    if (string.IsNullOrEmpty(output.facilities.purposeCode))
+                    {
+                        loads.facilities_purposeCode = "";
+                    }
+                    else
+                    {
+                        loads.facilities_purposeCode = output.facilities.purposeCode.ToString();
+                    }
+
+                    //facilities_totFeesAmount
+                    if (string.IsNullOrEmpty(output.facilities.totFeesAmount.ToString()))
+                    {
+                        loads.facilities_totFeesAmount = "";
+                    }
+                    else
+                    {
+                        loads.facilities_totFeesAmount = output.facilities.totFeesAmount.ToString();
+                    }
+
+                    //facilities_totFinancingAmount
+                    if (string.IsNullOrEmpty(output.facilities.totFinancingAmount.ToString()))
+                    {
+                        loads.facilities_totFinancingAmount = "";
+                    }
+                    else
+                    {
+                        loads.facilities_totFinancingAmount = output.facilities.totFinancingAmount.ToString();
+                    }
+
+                    //facilities_totFinancingAmountIncFlvm
+                    if (string.IsNullOrEmpty(output.facilities.totFinancingAmountIncFlvm.ToString()))
+                    {
+                        loads.facilities_totFinancingAmountIncFlvm = "";
+                    }
+                    else
+                    {
+                        loads.facilities_totFinancingAmountIncFlvm = output.facilities.totFinancingAmountIncFlvm.ToString();
+                    }
+
+                    //facilities_totInsAmount
+                    if (string.IsNullOrEmpty(output.facilities.totInsAmount.ToString()))
+                    {
+                        loads.facilities_totInsAmount = "";
+                    }
+                    else
+                    {
+                        loads.facilities_totInsAmount = output.facilities.totInsAmount.ToString();
+                    }
+
+                    //facilities_totValuationFees
+                    if (string.IsNullOrEmpty(output.facilities.totValuationFees.ToString()))
+                    {
+                        loads.facilities_totValuationFees = "";
+                    }
+                    else
+                    {
+                        loads.facilities_totValuationFees = output.facilities.totValuationFees.ToString();
+                    }
+
+                    //loanApplicationInfo_appStatus
+                    if (string.IsNullOrEmpty(output.loanApplicationInfo.appStatus))
+                    {
+                        loads.loanApplicationInfo_appStatus = "";
+                    }
+                    else
+                    {
+                        loads.loanApplicationInfo_appStatus = output.loanApplicationInfo.appStatus.ToString();
+                    }
+
+                    loads.loanApplicationInfo_branchAddr1 = output.loanApplicationInfo.branchAddr1 ?? "";
+                    loads.loanApplicationInfo_branchAddr2 = output.loanApplicationInfo.branchAddr2 ?? "";
+                    loads.loanApplicationInfo_branchAddr3 = output.loanApplicationInfo.branchAddr3 ?? "";
+
+                    loads.loanApplicationInfo_branchAddrCity = output.loanApplicationInfo.branchAddrCity ?? "";
+                    loads.loanApplicationInfo_branchAddrCountry = output.loanApplicationInfo.branchAddrCountry ?? "";
+                    loads.loanApplicationInfo_branchAddrPostcode = output.loanApplicationInfo.branchAddrPostcode ?? "";
+                    loads.loanApplicationInfo_branchAddrState = output.loanApplicationInfo.branchAddrState ?? "";
+
+                    loads.loanApplicationInfo_branchManagerEmail = output.loanApplicationInfo.branchManagerEmail ?? "";
+                    loads.loanApplicationInfo_branchManagerName = output.loanApplicationInfo.branchManagerName ?? "";
+                    loads.loanApplicationInfo_closingBranch = output.loanApplicationInfo.closingBranch ?? "";
+                    loads.loanApplicationInfo_lendingType = output.loanApplicationInfo.lendingType ?? "";
+
+                    //loanApplicationInfo_loAcceptanceDt
+                    loads.loanApplicationInfo_loAcceptanceDt = output.loanApplicationInfo.loAcceptanceDt ?? "";
+
+                    loads.loanApplicationInfo_mortgageCenterCode = output.loanApplicationInfo.mortgageCenterCode ?? "";
+                    loads.loanApplicationInfo_mortgageCenterEmail = output.loanApplicationInfo.mortgageCenterEmail ?? "";
+
+                    loads.loanApplicationInfo_salesEmail = output.loanApplicationInfo.salesEmail ?? "";
+                    loads.loanApplicationInfo_salesName = output.loanApplicationInfo.salesName ?? "";
+                    loads.loanApplicationInfo_solicitorAccountType = output.loanApplicationInfo.solicitorAccountType ?? "";
+                    loads.loanApplicationInfo_solicitorAddr1 = output.loanApplicationInfo.solicitorAddr1 ?? "";
+                    loads.loanApplicationInfo_solicitorAddr2 = output.loanApplicationInfo.solicitorAddr2 ?? "";
+                    loads.loanApplicationInfo_solicitorAddr3 = output.loanApplicationInfo.solicitorAddr3 ?? "";
+
+                    loads.loanApplicationInfo_solicitorCity = output.loanApplicationInfo.solicitorCity ?? "";
+                    loads.loanApplicationInfo_solicitorCode = output.loanApplicationInfo.solicitorCode ?? "";
+                    loads.loanApplicationInfo_solicitorCountry = output.loanApplicationInfo.solicitorCountry ?? "";
+                    loads.loanApplicationInfo_solicitorEmail = output.loanApplicationInfo.solicitorEmail ?? "";
+                    loads.loanApplicationInfo_solicitorIntStatus = output.loanApplicationInfo.solicitorIntStatus ?? "";
+                    loads.loanApplicationInfo_solicitorNBR = output.loanApplicationInfo.solicitorNBR ?? "";
+                    loads.loanApplicationInfo_solicitorName = output.loanApplicationInfo.solicitorName ?? "";
+
+                    loads.loanApplicationInfo_solicitorPostcode = output.loanApplicationInfo.solicitorPostcode ?? "";
+                    loads.loanApplicationInfo_solicitorState = output.loanApplicationInfo.solicitorState ?? "";
+                    loads.loanApplicationInfo_topupLoanInd = output.loanApplicationInfo.topupLoanInd ?? "";
+                    loads.loanApptPersonnelInfo_applicantAddr1 = output.loanApptPersonnelInfo.applicantAddr1 ?? "";
+                    loads.loanApptPersonnelInfo_applicantAddr2 = output.loanApptPersonnelInfo.applicantAddr2 ?? "";
+                    loads.loanApptPersonnelInfo_applicantAddr3 = output.loanApptPersonnelInfo.applicantAddr3 ?? "";
+                    loads.loanApptPersonnelInfo_applicantAddrCity = output.loanApptPersonnelInfo.applicantAddrCity ?? "";
+
+                    loads.loanApptPersonnelInfo_applicantAddrCountry = output.loanApptPersonnelInfo.applicantAddrCountry ?? "";
+                    loads.loanApptPersonnelInfo_applicantAddrPostcode = output.loanApptPersonnelInfo.applicantAddrPostcode ?? "";
+                    loads.loanApptPersonnelInfo_applicantAddrState = output.loanApptPersonnelInfo.applicantAddrState ?? "";
+                    loads.loanApptPersonnelInfo_applicantEmails = output.loanApptPersonnelInfo.applicantEmails ?? "";
+                    loads.loanApptPersonnelInfo_applicantIDs = output.loanApptPersonnelInfo.applicantIDs ?? "";
+                    loads.loanApptPersonnelInfo_applicantNamesCombine = output.loanApptPersonnelInfo.applicantNamesCombine ?? "";
+                    loads.loanApptPersonnelInfo_chargorIDs = output.loanApptPersonnelInfo.chargorIDs ?? "";
+
+                    loads.loanApptPersonnelInfo_chargorNames = output.loanApptPersonnelInfo.chargorNames ?? "";
+                    loads.loanApptPersonnelInfo_eStatementFlagInd = output.loanApptPersonnelInfo.eStatementFlagInd ?? "";
+                    loads.loanApptPersonnelInfo_guarantorIDs = output.loanApptPersonnelInfo.guarantorIDs ?? "";
+                    loads.loanApptPersonnelInfo_guarantorNames = output.loanApptPersonnelInfo.guarantorNames ?? "";
+                    loads.loanApptPersonnelInfo_priApplicantName = output.loanApptPersonnelInfo.priApplicantName ?? "";
+
+                    loads.respInfo_respCode = output.respInfo.respCode ?? "";
+                    loads.respInfo_respDesc = output.respInfo.respDesc ?? "";
+
+                    list.Add(loads);
+                }
+            }
+            catch (Exception ex)
+            {
+
+                //throw ex;
+            
+            
+
+
+            }
+           
+
+            
+            return list;
+        }
+
+        [WebMethod]
+        public void NewLI()
+        {         
+            // log the result in db
+            DataSet ds = null;
+            DataTable dt = null;
+            SqlConnection conn = null;
+            SqlDataAdapter sqlDA = null;
+
+            string strDataSource = clsGlobal.MG_SQL_DATA_SOURCE;
+            string strDBName = clsGlobal.MG_SQL_DB_NAME;
+            string strID = clsGlobal.MG_SQL_ID;
+            string strPassword = clsGlobal.MG_SQL_PASSWORD;
+            bool blnIsWinAuth = clsGlobal.MG_SQL_IS_WIN_AUTH;
+
+            string connstr = @"Data Source=" + strDataSource + ";Initial Catalog=" + strDBName + ";Persist Security Info=True;User ID=" + strID + ";Password=" + strPassword;
+            if (blnIsWinAuth)
+            {
+                connstr = @"Data Source=" + strDataSource + ";Initial Catalog=" + strDBName + ";Integrated Security=True;";
+            }
+
+            
+            //sqlcommand1.Parameters.AddWithValue("@ARN", dt.Rows[i]["ARN"].ToString());
+            //sqlcommand1.Parameters.AddWithValue("@RESPONSECODE", list[0].respInfo_respCode);
+            //sqlcommand1.Parameters.AddWithValue("@RESPONSEDESCRIPTION", list[0].respInfo_respDesc);
+
+            SqlConnection conn0 = null;
+            conn0 = new SqlConnection(connstr);
+            SqlCommand sqlcommand0 = new SqlCommand("dbo.usp_loads_staging_truncate_staging", conn0);
+            
+            conn0.Open();
+            int rowsAffected = sqlcommand0.ExecuteNonQuery();
+            conn0.Close();
+
+
+            conn = new SqlConnection(connstr);
+            conn.Open();
+
+            sqlDA = new SqlDataAdapter();
+            sqlDA.SelectCommand = new SqlCommand("dbo.getnewli", conn);            
+
+            ds = new DataSet("ds");
+            sqlDA.Fill(ds);
+            dt = ds.Tables[0];
+            if (dt.Rows.Count > 0)
+            {
+                for (int i = 0; i < dt.Rows.Count; i++)
+                {
+                    HLBBWS.AppWS ws = new AppWS();
+                    List<HLBBWS.AppWS.structureLOADS> list = new List<HLBBWS.AppWS.structureLOADS>();
+                    
+                    list = ws.DP_GetDataFromLOADS(dt.Rows[i]["ARN"].ToString());
+
+                    if (list.Count > 0)
+                    {
+                        //SqlDataAdapter sqlDA2 = null;
+                        //sqlDA2 = new SqlDataAdapter();
+                        //sqlDA2.SelectCommand = new SqlCommand("dbo.loads_staging_insert_test", conn);            
+
+
+                        SqlConnection conn2 = null;
+                        conn2 = new SqlConnection(connstr);
+                        
+//                        SqlCommand sqlcommand1 = new SqlCommand("dbo.usp_loads_staging_insert_test @param_ARN,@RESPONSECODE,@RESPONSEDESCRIPTION", conn2);
+
+                        SqlCommand sqlcommand1 = new SqlCommand("dbo.usp_loads_staging_insert @ARN  ,	@Status ,	@BranchAddr1 ,	@BranchAddr2  ,	@BranchAddr3  ,	@BranchAddrCity  ,	@BranchAddrCountry ,	@BranchAddrPostCode  ,	@BranchAddrState  ,	@BranchManagerEmailAddress  ,	@BranchManagerName  ,	@ClosingBranch ,	@DateOfLOAcceptance ,	@FinancingType  ,	@MortgateCenterCode  ,	@MortgateCenterEmail ,	@PFSalesEmailAddress ,	@PFCSalesName  ,	@SolicitorAccountNbr  ,	@SolicitorAccountType,	@SolicitorAddr1 ,	@SolicitorAddr2  ,	@SolicitorAddr3 ,	@SolicitorAddrCity  ,	@SolicitorAddrCountry  ,	@SolicitorAddrPostCode  ,	@SolicitorAddrState  ,	@SolicitorEmail  ,	@SolInternalStatus  ,	@SolicitorName  ,	@SolicitorCode  ,	@TopUpLoanIndicator  ,	@ChargorIDNumber ,	@ChargorName  ,	@CustomerAddr1  ,	@CustomerAddr2  ,	@CustomerAddr3  ,	@CustomerAddrCity  ,	@CustomerAddrCountry ,	@CustomerAddrPostCode ,	@CustomerAddrState,	@ApplicantEmail  ,	@CustomerID  ,	@ApplicantName  ,	@CustomerName  ,	@EStatementFlagIndicator ,	@GuarantorIDNumber ,	@GuarantorName ,	@DisbursementManner ,	@LoanAmount  ,	@FacilityAmount1  ,	@FacilityAmount2  ,	@FacilityAmount3  ,	@FacilityAmount4  ,	@FinancingProductName1  ,	@FinancingProductName2  ,	@FinancingProductName3  ,	@FinancingProductName4  ,	@GracePeriod  ,	@LegalFeesFinancedAmount  ,	@MRTAFinancedAmount  ,	@PurposeCode  ,	@TotalFinancingAmount  ,	@ValuationFeesFinancedAmount  ,	@BuildUpArea  ,	@DeveloperCode  ,	@DeveloperName  ,	@CollateralPurpose  ,	@LandArea  ,	@ProjectCode  ,	@ProjectName  ,	@PropertyAddress  ,	@PropertyType  ,	@ValuationRequired  ,	@TitleDetailsLO  ,	@ValuerAccountNBR  ,	@ValuerAccountType,	@ValuerAddr1  ,	@ValuerAddr2 ,	@ValuerAddr3 ,	@ValuerAddrCity  ,	@ValuerAddrCountry  ,	@ValuerAddrPostCode,	@ValuerAddrState,	@ValuerCode ,	@ValuerEmail,	@ValuerName ,	@VerbalIndicativeValue ,	@RESPONSECODE,	@RESPONSEDESCRIPTION", conn2);
+
+                        sqlcommand1.Parameters.AddWithValue("@ARN", dt.Rows[i]["ARN"].ToString());
+                        sqlcommand1.Parameters.AddWithValue("@Status", list[0].loanApplicationInfo_appStatus);
+                        sqlcommand1.Parameters.AddWithValue("@BranchAddr1", list[0].loanApplicationInfo_branchAddr1);
+                        sqlcommand1.Parameters.AddWithValue("@BranchAddr2", list[0].loanApplicationInfo_branchAddr2);
+                        sqlcommand1.Parameters.AddWithValue("@BranchAddr3", list[0].loanApplicationInfo_branchAddr3);
+                        sqlcommand1.Parameters.AddWithValue("@BranchAddrCity", list[0].loanApplicationInfo_branchAddrCity);
+                        sqlcommand1.Parameters.AddWithValue("@BranchAddrCountry", list[0].loanApplicationInfo_branchAddrCountry);
+                        sqlcommand1.Parameters.AddWithValue("@BranchAddrPostCode", list[0].loanApplicationInfo_branchAddrPostcode);
+                        sqlcommand1.Parameters.AddWithValue("@BranchAddrState", list[0].loanApplicationInfo_branchAddrState);
+                        sqlcommand1.Parameters.AddWithValue("@BranchManagerEmailAddress", list[0].loanApplicationInfo_branchManagerEmail);
+                        sqlcommand1.Parameters.AddWithValue("@BranchManagerName", list[0].loanApplicationInfo_branchManagerName);
+                        sqlcommand1.Parameters.AddWithValue("@ClosingBranch", list[0].loanApplicationInfo_closingBranch);
+                        sqlcommand1.Parameters.AddWithValue("@DateOfLOAcceptance", list[0].loanApplicationInfo_loAcceptanceDt);
+
+                        // sqlcommand1.Parameters.AddWithValue("@FinancingType", list[0].collaterals_financingType);
+                        sqlcommand1.Parameters.AddWithValue("@FinancingType", list[0].loanApplicationInfo_lendingType);
+                        sqlcommand1.Parameters.AddWithValue("@MortgateCenterCode", list[0].loanApplicationInfo_mortgageCenterCode);
+                        sqlcommand1.Parameters.AddWithValue("@MortgateCenterEmail", list[0].loanApplicationInfo_mortgageCenterEmail);
+                        sqlcommand1.Parameters.AddWithValue("@PFSalesEmailAddress", list[0].loanApplicationInfo_salesEmail);
+                        sqlcommand1.Parameters.AddWithValue("@PFCSalesName", list[0].loanApplicationInfo_salesName);
+                        sqlcommand1.Parameters.AddWithValue("@SolicitorAccountNbr", list[0].loanApplicationInfo_solicitorNBR);
+                        sqlcommand1.Parameters.AddWithValue("@SolicitorAccountType", list[0].loanApplicationInfo_solicitorAccountType);
+                        sqlcommand1.Parameters.AddWithValue("@SolicitorAddr1", list[0].loanApplicationInfo_solicitorAddr1);
+                        sqlcommand1.Parameters.AddWithValue("@SolicitorAddr2", list[0].loanApplicationInfo_solicitorAddr2);
+                        sqlcommand1.Parameters.AddWithValue("@SolicitorAddr3", list[0].loanApptPersonnelInfo_applicantAddr3);
+
+                        sqlcommand1.Parameters.AddWithValue("@SolicitorAddrCity", list[0].loanApptPersonnelInfo_applicantAddrCity);
+                        sqlcommand1.Parameters.AddWithValue("@SolicitorAddrCountry", list[0].loanApplicationInfo_solicitorCountry);
+                        sqlcommand1.Parameters.AddWithValue("@SolicitorAddrPostCode", list[0].loanApplicationInfo_solicitorPostcode);
+                        sqlcommand1.Parameters.AddWithValue("@SolicitorAddrState", list[0].loanApplicationInfo_solicitorState);
+                        sqlcommand1.Parameters.AddWithValue("@SolicitorEmail", list[0].loanApplicationInfo_solicitorEmail);
+                        sqlcommand1.Parameters.AddWithValue("@SolInternalStatus", list[0].loanApplicationInfo_solicitorIntStatus);
+                        sqlcommand1.Parameters.AddWithValue("@SolicitorName", list[0].loanApptPersonnelInfo_priApplicantName);
+                        sqlcommand1.Parameters.AddWithValue("@SolicitorCode", list[0].loanApplicationInfo_solicitorCode);
+                        sqlcommand1.Parameters.AddWithValue("@TopUpLoanIndicator", list[0].collaterals_verbalIndicativeValue);
+                        sqlcommand1.Parameters.AddWithValue("@ChargorIDNumber", list[0].loanApptPersonnelInfo_chargorIDs);
+
+                        sqlcommand1.Parameters.AddWithValue("@ChargorName", list[0].loanApptPersonnelInfo_chargorNames);
+                        sqlcommand1.Parameters.AddWithValue("@CustomerAddr1", list[0].loanApplicationInfo_solicitorAddr1);
+                        sqlcommand1.Parameters.AddWithValue("@CustomerAddr2", list[0].loanApplicationInfo_solicitorAddr2);
+                        sqlcommand1.Parameters.AddWithValue("@CustomerAddr3", list[0].loanApplicationInfo_solicitorAddr3);
+                        sqlcommand1.Parameters.AddWithValue("@CustomerAddrCity", list[0].loanApptPersonnelInfo_applicantAddrCity);
+                        sqlcommand1.Parameters.AddWithValue("@CustomerAddrCountry", list[0].loanApptPersonnelInfo_applicantAddrCountry);
+                        sqlcommand1.Parameters.AddWithValue("@CustomerAddrPostCode", list[0].collaterals_valuerPostcode);
+                        sqlcommand1.Parameters.AddWithValue("@CustomerAddrState", list[0].loanApptPersonnelInfo_applicantAddrState);                        
+                        sqlcommand1.Parameters.AddWithValue("@ApplicantEmail ", list[0].loanApptPersonnelInfo_applicantEmails);
+
+                        sqlcommand1.Parameters.AddWithValue("@CustomerID", list[0].loanApptPersonnelInfo_applicantIDs);
+                        sqlcommand1.Parameters.AddWithValue("@ApplicantName", list[0].loanApptPersonnelInfo_priApplicantName);
+                        sqlcommand1.Parameters.AddWithValue("@CustomerName", list[0].loanApptPersonnelInfo_applicantNamesCombine);
+                        sqlcommand1.Parameters.AddWithValue("@EStatementFlagIndicator", list[0].loanApptPersonnelInfo_eStatementFlagInd);
+                        sqlcommand1.Parameters.AddWithValue("@GuarantorIDNumber", list[0].loanApptPersonnelInfo_guarantorIDs);
+                        sqlcommand1.Parameters.AddWithValue("@GuarantorName", list[0].loanApptPersonnelInfo_guarantorNames);
+                        sqlcommand1.Parameters.AddWithValue("@DisbursementManner", list[0].facilities_disbursementManner);
+                        sqlcommand1.Parameters.AddWithValue("@LoanAmount", list[0].facilities_totFinancingAmount);
+                        sqlcommand1.Parameters.AddWithValue("@FacilityAmount1", list[0].facilities_facilityAmount1);
+                        sqlcommand1.Parameters.AddWithValue("@FacilityAmount2", list[0].facilities_facilityAmount2);
+                        sqlcommand1.Parameters.AddWithValue("@FacilityAmount3", list[0].facilities_facilityAmount3);
+                        sqlcommand1.Parameters.AddWithValue("@FacilityAmount4", list[0].facilities_facilityAmount4);
+
+                        sqlcommand1.Parameters.AddWithValue("@FinancingProductName1", list[0].facilities_productName1);
+                        sqlcommand1.Parameters.AddWithValue("@FinancingProductName2", list[0].facilities_productName2);
+                        sqlcommand1.Parameters.AddWithValue("@FinancingProductName3", list[0].facilities_productName3);
+                        sqlcommand1.Parameters.AddWithValue("@FinancingProductName4", list[0].facilities_productName4);
+                        sqlcommand1.Parameters.AddWithValue("@GracePeriod", list[0].facilities_gracePeriod);
+                        sqlcommand1.Parameters.AddWithValue("@LegalFeesFinancedAmount", list[0].facilities_totFeesAmount);
+                        sqlcommand1.Parameters.AddWithValue("@MRTAFinancedAmount", list[0].facilities_totInsAmount);
+                        sqlcommand1.Parameters.AddWithValue("@PurposeCode", list[0].facilities_purposeCode);
+                        sqlcommand1.Parameters.AddWithValue("@TotalFinancingAmount", list[0].facilities_totFinancingAmountIncFlvm);
+                        sqlcommand1.Parameters.AddWithValue("@ValuationFeesFinancedAmount", list[0].facilities_totValuationFees);
+                        sqlcommand1.Parameters.AddWithValue("@BuildUpArea", list[0].collaterals_buildUpArea);
+                        sqlcommand1.Parameters.AddWithValue("@DeveloperCode", list[0].collaterals_developerCode);
+
+                        sqlcommand1.Parameters.AddWithValue("@DeveloperName", list[0].collaterals_developerName);
+                        sqlcommand1.Parameters.AddWithValue("@CollateralPurpose", list[0].collaterals_financingType);
+                        sqlcommand1.Parameters.AddWithValue("@LandArea", list[0].collaterals_landArea);
+                        sqlcommand1.Parameters.AddWithValue("@ProjectCode", list[0].collaterals_projectCode);
+                        //sqlcommand1.Parameters.AddWithValue("@ProjectName", list[0].collaterals_propertyAddress);
+                        sqlcommand1.Parameters.AddWithValue("@ProjectName", list[0].collaterals_projectName);
+                        sqlcommand1.Parameters.AddWithValue("@PropertyAddress", list[0].collaterals_propertyAddress);
+                        sqlcommand1.Parameters.AddWithValue("@PropertyType", list[0].collaterals_propertyType);
+                        sqlcommand1.Parameters.AddWithValue("@ValuationRequired", list[0].collaterals_requiredValReportInd);
+                        sqlcommand1.Parameters.AddWithValue("@TitleDetailsLO", list[0].collaterals_titleDetails);
+                        sqlcommand1.Parameters.AddWithValue("@ValuerAccountNBR", list[0].collaterals_valuerAccountNbr);
+                        sqlcommand1.Parameters.AddWithValue("@ValuerAccountType", list[0].collaterals_valuerAccountType);
+                        sqlcommand1.Parameters.AddWithValue("@ValuerAddr1", list[0].collaterals_valuerAddr1);
+                        sqlcommand1.Parameters.AddWithValue("@ValuerAddr2", list[0].collaterals_valuerAddr2);
+                        sqlcommand1.Parameters.AddWithValue("@ValuerAddr3", list[0].collaterals_valuerAddr3);
+
+                        sqlcommand1.Parameters.AddWithValue("@ValuerAddrCity", list[0].collaterals_valuerCity);
+                        sqlcommand1.Parameters.AddWithValue("@ValuerAddrCountry", list[0].collaterals_valuerCountry);
+                        sqlcommand1.Parameters.AddWithValue("@ValuerAddrPostCode", list[0].collaterals_valuerPostcode);
+                        sqlcommand1.Parameters.AddWithValue("@ValuerAddrState", list[0].collaterals_valuerState);
+                        sqlcommand1.Parameters.AddWithValue("@ValuerCode", list[0].collaterals_valuerCode);
+                        sqlcommand1.Parameters.AddWithValue("@ValuerEmail", list[0].collaterals_valuerEmail);
+                        sqlcommand1.Parameters.AddWithValue("@ValuerName", list[0].collaterals_valuerName);
+                        sqlcommand1.Parameters.AddWithValue("@VerbalIndicativeValue", list[0].collaterals_verbalIndicativeValue);
+                        sqlcommand1.Parameters.AddWithValue("@RESPONSECODE", list[0].respInfo_respCode);
+                        sqlcommand1.Parameters.AddWithValue("@RESPONSEDESCRIPTION", list[0].respInfo_respDesc);
+
+
+                        //sqlcommand1.Parameters.Add("@param_ARN", SqlDbType.NVarChar);
+                        //sqlcommand1.Parameters["@param_ARN"].Value = dt.Rows[i]["ARN"].ToString();
+
+                        //sqlcommand1.Parameters.Add("@RESPONSECODE", SqlDbType.NVarChar);
+                        //sqlcommand1.Parameters["@RESPONSECODE"].Value = list[0].respInfo_respCode.ToString();
+
+                        //sqlcommand1.Parameters.Add("@RESPONSEDESCRIPTION", SqlDbType.NVarChar);
+                        //sqlcommand1.Parameters["@RESPONSEDESCRIPTION"].Value = list[0].respInfo_respDesc.ToString();
+
+                        
+                        conn2.Open();
+                        int rowsAffected2 = sqlcommand1.ExecuteNonQuery();
+                        conn2.Close();
+                    }
+                    
+
+                }
+
+                
+
+                //sqlcommand2.Parameters.AddWithValue("@ARN", dt.Rows[i]["ARN"].ToString());
+                //sqlcommand1.Parameters.AddWithValue("@RESPONSECODE", list[0].respInfo_respCode);
+                //sqlcommand1.Parameters.AddWithValue("@RESPONSEDESCRIPTION", list[0].respInfo_respDesc);
+
+                SqlConnection conn3 = null;
+                conn3 = new SqlConnection(connstr);
+                SqlCommand sqlcommand2 = new SqlCommand("dbo.usp_loads_staging_complete", conn3);
+                conn3.Open();
+                int rowsAffected3 = sqlcommand2.ExecuteNonQuery();
+                conn3.Close();
+
+                
+            }
+            conn.Close();
+
+        }
+
+        private const int Keysize = 256;
+
+        // This constant determines the number of iterations for the password bytes generation function.
+        private const int DerivationIterations = 1000;
+
+        [WebMethod]
+        public string EncryptText(string plainText, string passPhrase)
+        {
+            // Salt and IV is randomly generated each time, but is preprended to encrypted cipher text
+            // so that the same Salt and IV values can be used when decrypting.  
+            var saltStringBytes = Generate256BitsOfRandomEntropy();
+            var ivStringBytes = Generate256BitsOfRandomEntropy();
+            var plainTextBytes = Encoding.UTF8.GetBytes(plainText);
+            using (var password = new Rfc2898DeriveBytes(passPhrase, saltStringBytes, DerivationIterations))
+            {
+                var keyBytes = password.GetBytes(Keysize / 8);
+                using (var symmetricKey = new RijndaelManaged())
+                {
+                    symmetricKey.BlockSize = 256;
+                    symmetricKey.Mode = CipherMode.CBC;
+                    symmetricKey.Padding = PaddingMode.PKCS7;
+                    using (var encryptor = symmetricKey.CreateEncryptor(keyBytes, ivStringBytes))
+                    {
+                        using (var memoryStream = new MemoryStream())
+                        {
+                            using (var cryptoStream = new CryptoStream(memoryStream, encryptor, CryptoStreamMode.Write))
+                            {
+                                cryptoStream.Write(plainTextBytes, 0, plainTextBytes.Length);
+                                cryptoStream.FlushFinalBlock();
+                                // Create the final bytes as a concatenation of the random salt bytes, the random iv bytes and the cipher bytes.
+                                var cipherTextBytes = saltStringBytes;
+                                cipherTextBytes = cipherTextBytes.Concat(ivStringBytes).ToArray();
+                                cipherTextBytes = cipherTextBytes.Concat(memoryStream.ToArray()).ToArray();
+                                memoryStream.Close();
+                                cryptoStream.Close();
+                                return Convert.ToBase64String(cipherTextBytes);
+                            }
+                        }
+                    }
+                }
+            }
+        }
+
+        [WebMethod]
+        public string DecryptText(string cipherText, string passPhrase)
+        {
+            // Get the complete stream of bytes that represent:
+            // [32 bytes of Salt] + [32 bytes of IV] + [n bytes of CipherText]
+            var cipherTextBytesWithSaltAndIv = Convert.FromBase64String(cipherText);
+            // Get the saltbytes by extracting the first 32 bytes from the supplied cipherText bytes.
+            var saltStringBytes = cipherTextBytesWithSaltAndIv.Take(Keysize / 8).ToArray();
+            // Get the IV bytes by extracting the next 32 bytes from the supplied cipherText bytes.
+            var ivStringBytes = cipherTextBytesWithSaltAndIv.Skip(Keysize / 8).Take(Keysize / 8).ToArray();
+            // Get the actual cipher text bytes by removing the first 64 bytes from the cipherText string.
+            var cipherTextBytes = cipherTextBytesWithSaltAndIv.Skip((Keysize / 8) * 2).Take(cipherTextBytesWithSaltAndIv.Length - ((Keysize / 8) * 2)).ToArray();
+
+            using (var password = new Rfc2898DeriveBytes(passPhrase, saltStringBytes, DerivationIterations))
+            {
+                var keyBytes = password.GetBytes(Keysize / 8);
+                using (var symmetricKey = new RijndaelManaged())
+                {
+                    symmetricKey.BlockSize = 256;
+                    symmetricKey.Mode = CipherMode.CBC;
+                    symmetricKey.Padding = PaddingMode.PKCS7;
+                    using (var decryptor = symmetricKey.CreateDecryptor(keyBytes, ivStringBytes))
+                    {
+                        using (var memoryStream = new MemoryStream(cipherTextBytes))
+                        {
+                            using (var cryptoStream = new CryptoStream(memoryStream, decryptor, CryptoStreamMode.Read))
+                            {
+                                var plainTextBytes = new byte[cipherTextBytes.Length];
+                                var decryptedByteCount = cryptoStream.Read(plainTextBytes, 0, plainTextBytes.Length);
+                                memoryStream.Close();
+                                cryptoStream.Close();
+                                return Encoding.UTF8.GetString(plainTextBytes, 0, decryptedByteCount);
+                            }
+                        }
+                    }
+                }
+            }
+        }
+
+        private static byte[] Generate256BitsOfRandomEntropy()
+        {
+            var randomBytes = new byte[32]; // 32 Bytes will give us 256 bits.
+            using (var rngCsp = new RNGCryptoServiceProvider())
+            {
+                // Fill the array with cryptographically secure random bytes.
+                rngCsp.GetBytes(randomBytes);
+            }
+            return randomBytes;
+        }
+
+        [WebMethod]
+        public void ExportSolicitorSubmissionOtherDocumentsToEDMS(string solicitorcode, string strProfile, string strFolderName, string strARN, string strDocType, string strCategory, string strIDNumber , string Name )
+        {
+            //ExportFileResponseData response = new ExportFileResponseData();
+            DataSet ds = null;
+            DataTable dt = null;
+            SqlConnection conn = null;
+            SqlDataAdapter sqlDA = null;
+
+            //System.ServiceModel.BasicHttpBinding binding = null;
+            //EDMS_WSSDK.WSSDKSoapClient client = null;
+
+            try
+            {
+                string strDataSource = clsGlobal.MG_SQL_DATA_SOURCE;
+                string strDBName = clsGlobal.MG_SQL_DB_NAME;
+                string strID = clsGlobal.MG_SQL_ID;
+                string strPassword = clsGlobal.MG_SQL_PASSWORD;
+                bool blnIsWinAuth = clsGlobal.MG_SQL_IS_WIN_AUTH;
+
+                string connstr = @"Data Source=" + strDataSource + ";Initial Catalog=" + strDBName + ";Persist Security Info=True;User ID=" + strID + ";Password=" + strPassword;
+                if (blnIsWinAuth)
+                {
+                    connstr = @"Data Source=" + strDataSource + ";Initial Catalog=" + strDBName + ";Integrated Security=True;";
+                }
+                conn = new SqlConnection(connstr);
+                conn.Open();
+
+                sqlDA = new SqlDataAdapter();
+                sqlDA.SelectCommand = new SqlCommand("usp_getSolicitorOtherDocumentsFromARN @arn, @solicitorcode", conn);
+                //SqlCommand command = new SqlCommand(commandText, connection);
+                sqlDA.SelectCommand.Parameters.AddWithValue("@arn", strARN);
+                sqlDA.SelectCommand.Parameters.AddWithValue("@solicitorcode", solicitorcode);
+
+                ds = new DataSet("ds");
+                sqlDA.Fill(ds);
+                dt = ds.Tables[0];
+
+                conn.Close();
+
+                //Specify the binding to be used for the client.
+                //binding = new System.ServiceModel.BasicHttpBinding();
+                //client = new EDMS_WSSDK.WSSDKSoapClient("WSSDKSoap", clsGlobal.EDMS_HOST_URL);
+                if (dt.Rows.Count > 0)
+                {
+                    string outputARN;
+                    string outputSolicitorCode;
+                    string outputAttachmentID;
+                    string outputAttachment;
+                    string outputAttachmentName;
+                    string outputImage;
+                    string outputImageName;
+                    string outputCustomerID;
+                    string outputCustomerName;
+
+                    for (int i = 0; i < dt.Rows.Count; i++)
+                    {
+                        outputARN = dt.Rows[i]["ARN"].ToString();
+                        outputSolicitorCode = dt.Rows[i]["SolicitorCode"].ToString();
+                        outputAttachmentID = dt.Rows[i]["AttachmentID"].ToString();
+                        outputAttachment = dt.Rows[i]["Attachment"].ToString();
+                        outputAttachmentName = dt.Rows[i]["AttachmentName"].ToString();
+                        outputImageName = dt.Rows[i]["ImageName"].ToString();
+                        outputImage = dt.Rows[i]["Image"].ToString();
+                        outputCustomerID = dt.Rows[i]["CustomerID"].ToString();
+                        outputCustomerName = dt.Rows[i]["CustomerName"].ToString();
+                        ExportFileResponseData response = DP_ExportK2FileToEDMS(strProfile, strFolderName, outputImage, outputImageName, strARN, strDocType, strCategory, strIDNumber, Name);
+
+                    }
+
+                }
+            }
+            catch (Exception ex)
+            {
+                clsLog.WriteSystemLog(clsLog.MessageType.Error, "ExportSolicitorSubmissionOtherDocumentsToEDMS()", ex.Message + Environment.NewLine + ex.StackTrace);
+            }
+            finally
+            {
+                if (conn != null)
+                {
+                    if (conn.State != ConnectionState.Closed)
+                    {
+                        conn.Close();
+                    }
+                    conn = null;
+                }
+
+                ds = null;
+                dt = null;
+                sqlDA = null;
+
+            }
+        }
+    }
+}

@@ -1,0 +1,1 @@
+{"submissionStatus":"In Progress","analysisStatus":"running","submission_details":"[{\"vnc_port\":[0],\"job_ids\":[6070],\"id\":16791,\"uuid\":\"f38e47c9-13b5-4b7e-95d4-188d10a90a55\"}]"}
